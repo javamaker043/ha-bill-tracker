@@ -1,10 +1,17 @@
 import { Router } from 'express';
 import db from '../db/index.js';
+import { requireAdmin } from '../middleware/access.js';
 
 const router = Router();
 
 router.get('/', (_req, res) => {
   res.json(db.prepare('SELECT * FROM members ORDER BY name').all());
+});
+
+// Who does HA think is making this request, and are they an admin? Lets the
+// frontend decide whether to show admin-only controls.
+router.get('/me', (req, res) => {
+  res.json(req.currentMember || null);
 });
 
 router.post('/', (req, res) => {
@@ -29,6 +36,28 @@ router.put('/:id', (req, res) => {
     color ?? existing.color,
     ha_person_entity_id ?? existing.ha_person_entity_id,
     notify_target ?? existing.notify_target,
+    req.params.id
+  );
+  res.json(db.prepare('SELECT * FROM members WHERE id = ?').get(req.params.id));
+});
+
+// Admin-only: promote/demote another member.
+router.patch('/:id/admin', requireAdmin, (req, res) => {
+  const existing = db.prepare('SELECT * FROM members WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'not found' });
+  db.prepare('UPDATE members SET is_admin=? WHERE id=?').run(req.body.is_admin ? 1 : 0, req.params.id);
+  res.json(db.prepare('SELECT * FROM members WHERE id = ?').get(req.params.id));
+});
+
+// Admin-only: revoke/restore a member's access to the app.
+router.patch('/:id/access', requireAdmin, (req, res) => {
+  const existing = db.prepare('SELECT * FROM members WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'not found' });
+  if (req.currentMember && Number(req.params.id) === req.currentMember.id && req.body.access_revoked) {
+    return res.status(400).json({ error: "You can't revoke your own access." });
+  }
+  db.prepare('UPDATE members SET access_revoked=? WHERE id=?').run(
+    req.body.access_revoked ? 1 : 0,
     req.params.id
   );
   res.json(db.prepare('SELECT * FROM members WHERE id = ?').get(req.params.id));

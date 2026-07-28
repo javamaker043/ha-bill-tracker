@@ -72,13 +72,13 @@ function resolveNotifyTarget(memberId) {
 }
 
 export function startReminderScheduler() {
-  // Runs once each morning. Adjust with standard cron syntax if you'd like
-  // multiple checks per day.
-  cron.schedule('0 8 * * *', () => {
+  const runChecks = () => {
     checkBills().catch((err) => console.error('[reminders] bill check failed', err));
     checkTasks().catch((err) => console.error('[reminders] task check failed', err));
-  });
-  console.log('[reminders] daily scheduler started (08:00)');
+  };
+  cron.schedule('0 8 * * *', runChecks);
+  cron.schedule('0 18 * * *', runChecks);
+  console.log('[reminders] scheduler started (08:00 and 18:00)');
 }
 
 // Exported for the manual "test notification" endpoint / immediate run on boot

@@ -1,20 +1,38 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Modal from './Modal.jsx';
 import { api } from '../lib/api.js';
 
 const empty = {
-  name: '', amount: '', payee: '', category: 'other', recurrence: 'monthly',
+  name: '', amount: '', payee: '', category: 'Other', recurrence: 'monthly',
   due_date: new Date().toISOString().slice(0, 10), autopay: false,
   assigned_to: '', reminder_days_before: 3, notes: '',
 };
 
+const ADD_NEW = '__add_new__';
+
 export default function BillFormModal({ bill, members, onClose, onSaved }) {
   const [form, setForm] = useState(bill ? { ...empty, ...bill } : empty);
   const [saving, setSaving] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [newCategory, setNewCategory] = useState('');
+
+  const loadCategories = () => api.categories.list().then(setCategories);
+  useEffect(() => {
+    loadCategories();
+  }, []);
 
   const set = (key) => (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     setForm((f) => ({ ...f, [key]: value }));
+  };
+
+  const addCategory = async () => {
+    const name = newCategory.trim();
+    if (!name) return;
+    const category = await api.categories.create(name);
+    setNewCategory('');
+    await loadCategories();
+    setForm((f) => ({ ...f, category: category.name }));
   };
 
   const submit = async (e) => {
@@ -54,7 +72,41 @@ export default function BillFormModal({ bill, members, onClose, onSaved }) {
             </select>
           </Field>
           <Field label="Category">
-            <input value={form.category} onChange={set('category')} className={inputClass} placeholder="utilities, rent…" />
+            <select
+              required
+              value={form.category}
+              onChange={(e) => {
+                if (e.target.value === ADD_NEW) {
+                  setForm((f) => ({ ...f, category: '' }));
+                } else {
+                  set('category')(e);
+                }
+              }}
+              className={inputClass}
+            >
+              <option value="" disabled>
+                Select a category…
+              </option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
+              <option value={ADD_NEW}>+ Add new category…</option>
+            </select>
+            {!form.category && (
+              <div className="mt-2 flex gap-2">
+                <input
+                  placeholder="New category name"
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  className={inputClass}
+                />
+                <button type="button" onClick={addCategory} className="rounded-lg bg-accent px-3 text-sm font-medium hover:bg-accent-soft">
+                  Add
+                </button>
+              </div>
+            )}
           </Field>
         </div>
         <Field label="Assigned to">
