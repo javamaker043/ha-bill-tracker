@@ -3,21 +3,41 @@
 -- gated by Home Assistant's own authentication via Ingress, so there is no
 -- separate password to manage here. This also lets you assign things to
 -- people (e.g. kids) who don't have their own HA login.
+--
+-- is_admin/access_revoked add a lightweight layer on top: a member claims a
+-- profile by name the first time HA forwards their identity on an ingress
+-- request (see middleware/access.js), and an admin can then revoke that
+-- specific person's access to the app.
 CREATE TABLE IF NOT EXISTS members (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   color TEXT NOT NULL DEFAULT '#6366f1',
   ha_person_entity_id TEXT,          -- optional link to a HA person.* entity for notify targeting
+  ha_user_id TEXT UNIQUE,            -- HA user id (from ingress headers) claimed on first request, used for access control
   notify_target TEXT,                -- optional HA notify service, e.g. notify.mobile_app_ty_phone
+  is_admin INTEGER NOT NULL DEFAULT 0,
+  access_revoked INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Bill categories. Seeded with sensible defaults below; household members can
+-- add their own from Settings.
+CREATE TABLE IF NOT EXISTS categories (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+INSERT OR IGNORE INTO categories (name) VALUES
+  ('Utilities'), ('Housing'), ('Subscriptions'), ('Auto'),
+  ('Credit Cards'), ('Short-Term Loans'), ('Food'), ('Other');
 
 CREATE TABLE IF NOT EXISTS bills (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   amount REAL NOT NULL DEFAULT 0,
   payee TEXT,
-  category TEXT NOT NULL DEFAULT 'other',
+  category TEXT NOT NULL DEFAULT 'Other',
   recurrence TEXT NOT NULL DEFAULT 'monthly',   -- once | weekly | monthly | yearly
   due_date TEXT NOT NULL,                        -- ISO date of the next/only due date
   autopay INTEGER NOT NULL DEFAULT 0,

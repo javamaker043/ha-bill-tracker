@@ -16,9 +16,19 @@ async function request(path, options = {}) {
 export const api = {
   members: {
     list: () => request('/members'),
+    me: () => request('/members/me'),
     create: (data) => request('/members', { method: 'POST', body: JSON.stringify(data) }),
     update: (id, data) => request(`/members/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    setAdmin: (id, is_admin) =>
+      request(`/members/${id}/admin`, { method: 'PATCH', body: JSON.stringify({ is_admin }) }),
+    setAccess: (id, access_revoked) =>
+      request(`/members/${id}/access`, { method: 'PATCH', body: JSON.stringify({ access_revoked }) }),
     remove: (id) => request(`/members/${id}`, { method: 'DELETE' }),
+  },
+  categories: {
+    list: () => request('/categories'),
+    create: (name) => request('/categories', { method: 'POST', body: JSON.stringify({ name }) }),
+    remove: (id) => request(`/categories/${id}`, { method: 'DELETE' }),
   },
   bills: {
     list: (params = {}) => request(`/bills?${new URLSearchParams(params)}`),

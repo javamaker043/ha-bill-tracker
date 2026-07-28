@@ -62,7 +62,7 @@ router.post('/', (req, res) => {
       name,
       amount || 0,
       payee || null,
-      category || 'other',
+      category || 'Other',
       recurrence || 'monthly',
       due_date,
       autopay ? 1 : 0,
