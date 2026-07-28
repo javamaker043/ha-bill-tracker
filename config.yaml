@@ -1,0 +1,35 @@
+name: "Household Hub"
+version: "0.1.0"
+slug: "household_hub"
+description: "Track bills, due dates, and household project tasks with Home Assistant notifications."
+url: "https://github.com/javamaker043/ha-bill-tracker"
+arch:
+  - aarch64
+  - amd64
+  - armv7
+init: false
+startup: application
+boot: auto
+
+# Ingress = access the UI through Home Assistant's own authenticated session.
+# No separate login screen, no exposed port to the LAN or internet.
+ingress: true
+ingress_port: 8099
+ingress_stream: false
+panel_icon: mdi:cash-multiple
+panel_title: "Household Hub"
+
+# Needed so the add-on can call Supervisor/Core APIs (notify service, person entities)
+homeassistant_api: true
+hassio_api: true
+hassio_role: default
+
+# Persistent SQLite database lives in /data, which every add-on gets
+# automatically (survives updates/restarts, not exposed outside the container)
+
+options:
+  reminder_lookahead_days: 3
+  notify_service: "notify.notify"
+schema:
+  reminder_lookahead_days: int(1,14)
+  notify_service: str
