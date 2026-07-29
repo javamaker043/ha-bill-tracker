@@ -6,6 +6,9 @@ RUN npm install
 COPY frontend/ ./
 RUN npm run build
 
+# BUILD_FROM is supplied by Supervisor per-arch via build.yaml when this is
+# installed as an add-on; the amd64 fallback below only kicks in for a
+# manual `docker build .` outside of that.
 FROM ${BUILD_FROM:-ghcr.io/home-assistant/amd64-base-debian:bookworm}
 
 # s6-overlay base images already provide node? No -> install Node 20 manually.
