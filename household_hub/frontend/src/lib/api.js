@@ -44,7 +44,16 @@ export const api = {
     create: (data) => request('/bills', { method: 'POST', body: JSON.stringify(data) }),
     update: (id, data) => request(`/bills/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     pay: (id, data = {}) => request(`/bills/${id}/pay`, { method: 'POST', body: JSON.stringify(data) }),
+    assignPaycheck: (id, paycheck_id) =>
+      request(`/bills/${id}/paycheck`, { method: 'PATCH', body: JSON.stringify({ paycheck_id }) }),
     remove: (id) => request(`/bills/${id}`, { method: 'DELETE' }),
+  },
+  paychecks: {
+    list: () => request('/paychecks'),
+    unassignedBills: () => request('/paychecks/unassigned-bills'),
+    create: (data) => request('/paychecks', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id, data) => request(`/paychecks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    remove: (id) => request(`/paychecks/${id}`, { method: 'DELETE' }),
   },
   projects: {
     list: () => request('/projects'),

@@ -41,8 +41,8 @@ export default function Bills() {
         </button>
       </div>
 
-      <Card className="p-0 overflow-hidden">
-        <table className="w-full text-sm">
+      <Card className="overflow-x-auto p-0">
+        <table className="w-full min-w-[640px] text-sm">
           <thead className="bg-surface-muted text-left text-xs uppercase tracking-wide text-slate-400">
             <tr>
               <th className="px-4 py-3">Name</th>

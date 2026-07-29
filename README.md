@@ -12,6 +12,12 @@ and a bill calendar) and project/task lists assigned to family members.
   Auto, Credit Cards, Short-Term Loans, and Food; add your own from Settings
   or straight out of the bill form.
 - **Bill calendar** — month view of upcoming and past due dates.
+- **Payment Plans** — budget bills against upcoming paychecks: add a pay date
+  and expected amount, then assign bills to whichever check covers them from
+  a kanban-style board (drag-and-drop on desktop, a dropdown on every bill
+  card everywhere else, including mobile). Unassigned bills are listed
+  past-due first; each paycheck column shows a live running total of what's
+  left after its assigned bills.
 - **Projects & tasks** — group tasks into projects, assign them to household
   members, set priority/due dates, and track status.
 - **Dashboard** — at-a-glance summary of what's due soon and what's
@@ -39,6 +45,11 @@ and a bill calendar) and project/task lists assigned to family members.
   Nothing leaves your network.
 - **Frontend**: React + Vite + Tailwind, built into static files the backend
   serves directly (single container, no separate web server).
+- **Mobile**: designed for a mix of desktop and mobile use, including inside
+  the Home Assistant iOS/Android app's Ingress webview. The sidebar collapses
+  behind a hamburger menu below the `md` breakpoint and slides in as an
+  overlay; wide content (the bills table, the payment-plans board) scrolls
+  horizontally in its own container instead of breaking the page layout.
 - **Notifications**: sent through Home Assistant's own `notify.*` services
   via the Supervisor-proxied Core API (uses the auto-injected
   `SUPERVISOR_TOKEN` — no credentials to manage). A scheduler runs at 08:00
@@ -79,12 +90,12 @@ household_hub/           # the add-on itself
   run.sh                   # add-on entrypoint, reads options.json
   backend/                 # Express API + SQLite schema
     src/db/                # schema.sql, sqlite connection
-    src/routes/             # bills, tasks, projects, members, categories, notify
-    src/services/           # Home Assistant API client, reminder scheduler, recurrence math, first-boot import
+    src/routes/             # bills, tasks, projects, members, categories, paychecks, notify
+    src/services/           # Home Assistant API client, reminder scheduler, recurrence math, first-boot import, bill status
     src/middleware/         # ingress identity, per-member access control
   frontend/                # React + Vite + Tailwind UI
-    src/pages/              # Dashboard, Bills, Bill Calendar, Projects, Project detail, Settings
-    src/components/         # shared UI (cards, modals, badges)
+    src/pages/              # Dashboard, Bills, Bill Calendar, Payment Plans, Projects, Project detail, Settings
+    src/components/         # shared UI (cards, modals, badges, error boundary)
 ```
 
 ## Configuration
@@ -100,8 +111,11 @@ Set from the add-on's **Configuration** tab in Home Assistant (backed by
 ## Data model (SQLite)
 
 - `bills` — name, amount, payee, category, recurrence (once/weekly/monthly/yearly),
-  due_date, autopay, assigned_to, reminder_days_before, status, notes
+  due_date, autopay, assigned_to, `paycheck_id` (payment-plan assignment),
+  reminder_days_before, status, notes
 - `bill_payments` — payment history per bill
+- `paychecks` — a planned pay date + expected amount for Payment Plans;
+  bills assigned to one via `bills.paycheck_id`
 - `categories` — bill category names; seeded with Utilities, Housing,
   Subscriptions, Auto, Credit Cards, Short-Term Loans, Food, Other
 - `projects` — name, description, color

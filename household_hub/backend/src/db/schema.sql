@@ -32,6 +32,16 @@ INSERT OR IGNORE INTO categories (name) VALUES
   ('Utilities'), ('Housing'), ('Subscriptions'), ('Auto'),
   ('Credit Cards'), ('Short-Term Loans'), ('Food'), ('Other');
 
+-- A planned paycheck: a date + expected amount you can assign bills against
+-- from the Payment Plans tab, to budget which bills come out of which check.
+CREATE TABLE IF NOT EXISTS paychecks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  pay_date TEXT NOT NULL,
+  expected_amount REAL NOT NULL DEFAULT 0,
+  notes TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS bills (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
@@ -42,6 +52,7 @@ CREATE TABLE IF NOT EXISTS bills (
   due_date TEXT NOT NULL,                        -- ISO date of the next/only due date
   autopay INTEGER NOT NULL DEFAULT 0,
   assigned_to INTEGER REFERENCES members(id) ON DELETE SET NULL,
+  paycheck_id INTEGER REFERENCES paychecks(id) ON DELETE SET NULL, -- payment-plan assignment
   reminder_days_before INTEGER NOT NULL DEFAULT 3,
   status TEXT NOT NULL DEFAULT 'unpaid',          -- unpaid | paid | overdue
   notes TEXT,
@@ -87,5 +98,15 @@ CREATE TABLE IF NOT EXISTS notification_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_bills_due_date ON bills(due_date);
+CREATE INDEX IF NOT EXISTS idx_bills_paycheck ON bills(paycheck_id);
+CREATE INDEX IF NOT EXISTS idx_paychecks_pay_date ON paychecks(pay_date);
 CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
 CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
+
+-- members.ha_user_id already has an inline UNIQUE for brand-new databases;
+-- this index makes the same guarantee for databases where the column was
+-- added later via migration (see db/index.js), where ALTER TABLE ADD COLUMN
+-- can't declare UNIQUE inline. Partial (WHERE ... IS NOT NULL) so multiple
+-- unclaimed (NULL) members are still allowed.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_members_ha_user_id
+  ON members(ha_user_id) WHERE ha_user_id IS NOT NULL;
