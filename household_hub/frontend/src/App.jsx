@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, NavLink, useLocation, Link } from 'react-router-dom';
-import { LayoutDashboard, Receipt, CalendarDays, FolderKanban, Settings, Wallet, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Receipt, CalendarDays, FolderKanban, Settings, Wallet, Menu, X, AlertTriangle } from 'lucide-react';
 
 import Dashboard from './pages/Dashboard.jsx';
 import Bills from './pages/Bills.jsx';
@@ -25,10 +25,27 @@ export default function App() {
   // Closed by default so mobile (the HA iOS app, small viewports) starts on
   // page content, not the nav; md: breakpoint and up shows it inline instead.
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [crashError, setCrashError] = useState(null);
 
   useEffect(() => {
     setSidebarOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    // React's error boundaries (see ErrorBoundary.jsx) only catch errors
+    // thrown while rendering -- not from useEffect callbacks, event
+    // handlers, or rejected promises, which surface as regular uncaught
+    // errors instead and otherwise leave no visible trace beyond the
+    // console. This is a backstop for that whole other class of crash.
+    const onError = (event) => setCrashError(event.error?.message || event.message);
+    const onRejection = (event) => setCrashError(event.reason?.message || String(event.reason));
+    window.addEventListener('error', onError);
+    window.addEventListener('unhandledrejection', onRejection);
+    return () => {
+      window.removeEventListener('error', onError);
+      window.removeEventListener('unhandledrejection', onRejection);
+    };
+  }, []);
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -76,6 +93,25 @@ export default function App() {
           </button>
           <h1 className="text-base font-semibold">Household Hub</h1>
         </header>
+
+        {crashError && (
+          <div className="flex items-start gap-3 border-b border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+            <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <p className="font-medium">Something broke: {crashError}</p>
+              <p className="text-xs text-rose-300/80">
+                The rest of the app should still work -- try another page from the menu, or reload if things
+                look stuck.
+              </p>
+            </div>
+            <button onClick={() => window.location.reload()} className="shrink-0 rounded-md bg-rose-500/20 px-2.5 py-1 text-xs font-medium hover:bg-rose-500/30">
+              Reload
+            </button>
+            <button onClick={() => setCrashError(null)} className="shrink-0 text-rose-300/70 hover:text-rose-100">
+              <X size={16} />
+            </button>
+          </div>
+        )}
 
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
           {/* Keyed by path so a crash on one page doesn't linger after you
