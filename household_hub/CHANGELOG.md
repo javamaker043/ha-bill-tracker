@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.2.0
+
+- Added a **Payment Plans** tab: add upcoming paychecks (date + expected
+  amount), then assign bills to whichever check covers them from a
+  kanban-style board (drag-and-drop on desktop, a dropdown on every bill
+  card everywhere else, including mobile/touch). Unassigned bills are
+  listed past-due first, and each paycheck shows a live running total of
+  what's left after its assigned bills.
+- Mobile layout: the sidebar now collapses behind a hamburger menu on
+  small screens and slides in as a dismissible overlay instead of
+  cramming a full desktop sidebar onto a phone; wide content like the
+  bills table and the new payment-plans board scrolls horizontally in
+  its own container instead of breaking the page. Aimed at using the app
+  through the Home Assistant iOS/Android app, not just desktop browsers.
+- Added a global crash banner for errors that happen outside of
+  rendering (in effects, event handlers, or rejected promises), which
+  the existing error boundary can't catch -- these now show a visible,
+  dismissible message instead of failing silently.
+- Existing databases (installed before this update) now get their
+  schema migrated automatically on next startup instead of silently
+  missing columns added in earlier releases.
+
 ## 0.1.2
 
 - Version bump only, so Home Assistant's Add-on Store offers this update
