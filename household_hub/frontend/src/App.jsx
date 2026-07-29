@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, NavLink } from 'react-router-dom';
+import { Routes, Route, NavLink, useLocation, Link } from 'react-router-dom';
 import { LayoutDashboard, Receipt, CalendarDays, FolderKanban, Settings } from 'lucide-react';
 
 import Dashboard from './pages/Dashboard.jsx';
@@ -8,6 +8,7 @@ import BillCalendar from './pages/BillCalendar.jsx';
 import Projects from './pages/Projects.jsx';
 import ProjectDetail from './pages/ProjectDetail.jsx';
 import SettingsPage from './pages/Settings.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -18,6 +19,8 @@ const navItems = [
 ];
 
 export default function App() {
+  const location = useLocation();
+
   return (
     <div className="flex h-screen">
       <aside className="w-60 shrink-0 border-r border-white/5 bg-surface-raised p-4 flex flex-col gap-1">
@@ -45,15 +48,31 @@ export default function App() {
       </aside>
 
       <main className="flex-1 overflow-y-auto p-8">
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/bills" element={<Bills />} />
-          <Route path="/calendar" element={<BillCalendar />} />
-          <Route path="/projects" element={<Projects />} />
-          <Route path="/projects/:id" element={<ProjectDetail />} />
-          <Route path="/settings" element={<SettingsPage />} />
-        </Routes>
+        {/* Keyed by path so a crash on one page doesn't linger after you
+            navigate away -- the sidebar above stays clickable either way. */}
+        <ErrorBoundary key={location.pathname}>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/bills" element={<Bills />} />
+            <Route path="/calendar" element={<BillCalendar />} />
+            <Route path="/projects" element={<Projects />} />
+            <Route path="/projects/:id" element={<ProjectDetail />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </ErrorBoundary>
       </main>
+    </div>
+  );
+}
+
+function NotFound() {
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 rounded-xl2 border border-white/5 bg-surface-raised p-10 text-center">
+      <p className="text-lg font-semibold">Page not found.</p>
+      <Link to="/" className="text-sm text-accent-soft hover:underline">
+        Back to Dashboard
+      </Link>
     </div>
   );
 }
