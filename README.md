@@ -63,18 +63,25 @@ and a bill calendar) and project/task lists assigned to family members.
 
 ## Repo layout
 
+This repo is a Home Assistant **add-on repository**: `repository.json` at
+the root describes the repository itself, and the add-on lives in its own
+`household_hub/` subfolder (HA requires this even for a repository with
+only one add-on in it — see [Installing](#installing-as-a-ha-add-on-web-ui)).
+
 ```
-config.yaml        # HA add-on manifest (ingress, permissions, options)
-Dockerfile          # multi-stage build: frontend -> static files, backend -> Node server
-run.sh              # add-on entrypoint, reads options.json
-backend/            # Express API + SQLite schema
-  src/db/           # schema.sql, sqlite connection
-  src/routes/        # bills, tasks, projects, members, categories, notify
-  src/services/      # Home Assistant API client, reminder scheduler, recurrence math, first-boot import
-  src/middleware/    # ingress identity, per-member access control
-frontend/           # React + Vite + Tailwind UI
-  src/pages/         # Dashboard, Bills, Bill Calendar, Projects, Project detail, Settings
-  src/components/    # shared UI (cards, modals, badges)
+repository.json          # HA add-on repository manifest (name/url/maintainer)
+household_hub/           # the add-on itself
+  config.yaml             # HA add-on manifest (ingress, permissions, options)
+  Dockerfile               # multi-stage build: frontend -> static files, backend -> Node server
+  run.sh                   # add-on entrypoint, reads options.json
+  backend/                 # Express API + SQLite schema
+    src/db/                # schema.sql, sqlite connection
+    src/routes/             # bills, tasks, projects, members, categories, notify
+    src/services/           # Home Assistant API client, reminder scheduler, recurrence math, first-boot import
+    src/middleware/         # ingress identity, per-member access control
+  frontend/                # React + Vite + Tailwind UI
+    src/pages/              # Dashboard, Bills, Bill Calendar, Projects, Project detail, Settings
+    src/components/         # shared UI (cards, modals, badges)
 ```
 
 ## Configuration
@@ -112,7 +119,11 @@ command line, no SSH, nothing installed outside HA itself.
    - Click the **⋮** (three-dot) menu in the top right corner and choose
      **Repositories**.
    - Paste this repo's URL: `https://github.com/javamaker043/ha-bill-tracker`
-   - Click **Add**, then **Close**.
+   - Click **Add**, then **Close**. (If HA says the URL "is not a valid
+     add-on repository," it's looking for a `repository.json` at the repo
+     root, which this repo has — make sure you're pointed at the repo URL
+     itself, not a branch/subfolder URL, and that your fork/clone is on the
+     latest commit that includes `repository.json`.)
 2. **Find and install Household Hub.**
    - Still on the Add-on Store page, refresh/reload if it doesn't appear
      right away (pull down or reload the browser tab).
@@ -154,8 +165,8 @@ pushing changes; the HA Yellow install itself needs none of this — Supervisor
 builds and runs the container on its own.
 
 ```bash
-cd backend && npm install && npm run dev     # API on :8099
-cd frontend && npm install && npm run dev    # UI on :5173, proxies /api to :8099
+cd household_hub/backend && npm install && npm run dev     # API on :8099
+cd household_hub/frontend && npm install && npm run dev    # UI on :5173, proxies /api to :8099
 ```
 
 Note: this sandbox's own network policy blocked `npm install` (registry and
