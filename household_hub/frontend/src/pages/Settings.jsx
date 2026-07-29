@@ -125,7 +125,7 @@ export default function Settings() {
           {members.length === 0 && <p className="text-sm text-slate-500">No members added yet.</p>}
         </div>
 
-        <form onSubmit={addMember} className="grid grid-cols-[1fr_auto_1fr_auto] gap-2 items-center">
+        <form onSubmit={addMember} className="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_auto_1fr_auto] sm:items-center">
           <input
             placeholder="Name"
             value={form.name}

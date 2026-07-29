@@ -1,14 +1,9 @@
 import { Router } from 'express';
 import db from '../db/index.js';
 import { advanceDueDate } from '../services/recurrence.js';
+import { withComputedStatus } from '../services/billStatus.js';
 
 const router = Router();
-
-const withComputedStatus = (bill) => {
-  if (bill.status === 'paid') return bill;
-  const today = new Date().toISOString().slice(0, 10);
-  return { ...bill, status: bill.due_date < today ? 'overdue' : 'unpaid' };
-};
 
 router.get('/', (req, res) => {
   const { status, assigned_to } = req.query;
@@ -88,6 +83,18 @@ router.put('/:id', (req, res) => {
   res.json(db.prepare('SELECT * FROM bills WHERE id = ?').get(req.params.id));
 });
 
+// Assign (or unassign, with paycheck_id: null) a bill to a paycheck for
+// payment planning -- separate from actually marking it paid.
+router.patch('/:id/paycheck', (req, res) => {
+  const existing = db.prepare('SELECT * FROM bills WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'not found' });
+  db.prepare('UPDATE bills SET paycheck_id=? WHERE id=?').run(
+    req.body.paycheck_id || null,
+    req.params.id
+  );
+  res.json(withComputedStatus(db.prepare('SELECT * FROM bills WHERE id = ?').get(req.params.id)));
+});
+
 // Mark paid: logs payment, then rolls due_date forward if recurring
 router.post('/:id/pay', (req, res) => {
   const bill = db.prepare('SELECT * FROM bills WHERE id = ?').get(req.params.id);
@@ -102,11 +109,13 @@ router.post('/:id/pay', (req, res) => {
   if (bill.recurrence === 'once') {
     db.prepare("UPDATE bills SET status='paid', updated_at=datetime('now') WHERE id=?").run(bill.id);
   } else {
+    // Rolling to the next occurrence starts a new, unplanned bill -- clear
+    // any payment-plan assignment so it returns to the unassigned pool
+    // instead of staying glued to a paycheck that's already been spent.
     const nextDue = advanceDueDate(bill.due_date, bill.recurrence);
-    db.prepare("UPDATE bills SET status='unpaid', due_date=?, updated_at=datetime('now') WHERE id=?").run(
-      nextDue,
-      bill.id
-    );
+    db.prepare(
+      "UPDATE bills SET status='unpaid', due_date=?, paycheck_id=NULL, updated_at=datetime('now') WHERE id=?"
+    ).run(nextDue, bill.id);
   }
   res.json(db.prepare('SELECT * FROM bills WHERE id = ?').get(bill.id));
 });

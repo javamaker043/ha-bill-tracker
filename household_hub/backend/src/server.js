@@ -11,6 +11,7 @@ import projectsRouter from './routes/projects.js';
 import tasksRouter from './routes/tasks.js';
 import notifyRouter from './routes/notify.js';
 import categoriesRouter from './routes/categories.js';
+import paychecksRouter from './routes/paychecks.js';
 import { startReminderScheduler } from './services/reminders.js';
 import { importMembersOnFirstBoot } from './services/bootstrap.js';
 
@@ -30,6 +31,7 @@ app.use('/api/projects', projectsRouter);
 app.use('/api/tasks', tasksRouter);
 app.use('/api/notify', notifyRouter);
 app.use('/api/categories', categoriesRouter);
+app.use('/api/paychecks', paychecksRouter);
 
 // Serve the built React app (see Dockerfile: frontend build output -> /app/public)
 const staticDir = path.join(__dirname, '../public');
