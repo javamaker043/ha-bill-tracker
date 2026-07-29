@@ -4,4 +4,4 @@ dist/
 *.db-journal
 .env
 .DS_Store
-backend/data/
+household_hub/backend/data/
