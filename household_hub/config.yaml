@@ -1,5 +1,5 @@
 name: "Household Hub"
-version: "0.1.1"
+version: "0.1.2"
 slug: "household_hub"
 description: "Track bills, due dates, and household project tasks with Home Assistant notifications."
 url: "https://github.com/javamaker043/ha-bill-tracker"
