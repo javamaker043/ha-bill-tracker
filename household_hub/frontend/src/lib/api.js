@@ -1,16 +1,23 @@
 const BASE = 'api';
 
 async function request(path, options = {}) {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `Request failed: ${res.status}`);
+  try {
+    const res = await fetch(`${BASE}${path}`, {
+      headers: { 'Content-Type': 'application/json' },
+      ...options,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || `Request failed: ${res.status}`);
+    }
+    if (res.status === 204) return null;
+    return res.json();
+  } catch (err) {
+    // Most call sites don't .catch() this (a stale page just keeps its old
+    // data), so log here or failures vanish as silent unhandled rejections.
+    console.error(`[household-hub] ${options.method || 'GET'} ${path} failed:`, err);
+    throw err;
   }
-  if (res.status === 204) return null;
-  return res.json();
 }
 
 export const api = {

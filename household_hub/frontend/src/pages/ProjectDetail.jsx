@@ -12,13 +12,18 @@ const statuses = ['todo', 'in_progress', 'done'];
 export default function ProjectDetail() {
   const { id } = useParams();
   const [project, setProject] = useState(null);
+  const [notFound, setNotFound] = useState(false);
   const [tasks, setTasks] = useState([]);
   const [members, setMembers] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: '', due_date: '', assigned_to: '', priority: 'normal' });
 
   const refresh = () => {
-    api.projects.list().then((all) => setProject(all.find((p) => String(p.id) === id)));
+    api.projects.list().then((all) => {
+      const found = all.find((p) => String(p.id) === id);
+      setProject(found || null);
+      setNotFound(!found);
+    });
     api.tasks.list({ project_id: id }).then(setTasks);
     api.members.list().then(setMembers);
   };
@@ -41,6 +46,16 @@ export default function ProjectDetail() {
     refresh();
   };
 
+  if (notFound) {
+    return (
+      <div className="space-y-4">
+        <Link to="/projects" className="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-white">
+          <ArrowLeft size={16} /> All projects
+        </Link>
+        <p className="text-slate-400">This project doesn't exist (it may have been deleted).</p>
+      </div>
+    );
+  }
   if (!project) return <p className="text-slate-400">Loading…</p>;
 
   return (
