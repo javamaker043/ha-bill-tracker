@@ -72,6 +72,9 @@ only one add-on in it — see [Installing](#installing-as-a-ha-add-on-web-ui)).
 repository.json          # HA add-on repository manifest (name/url/maintainer)
 household_hub/           # the add-on itself
   config.yaml             # HA add-on manifest (ingress, permissions, options)
+  build.yaml               # maps each supported arch to its HA base image, so
+                            # Supervisor builds with the right platform (aarch64
+                            # on a Yellow, not the Dockerfile's amd64 fallback)
   Dockerfile               # multi-stage build: frontend -> static files, backend -> Node server
   run.sh                   # add-on entrypoint, reads options.json
   backend/                 # Express API + SQLite schema
