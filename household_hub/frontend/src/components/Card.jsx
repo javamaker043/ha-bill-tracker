@@ -1,8 +1,8 @@
 import React from 'react';
 
-export function Card({ children, className = '' }) {
+export function Card({ children, className = '', padding = 'p-5' }) {
   return (
-    <div className={`rounded-xl2 border border-white/5 bg-surface-raised p-5 ${className}`}>
+    <div className={`rounded-xl2 border border-white/5 bg-surface-raised ${padding} ${className}`}>
       {children}
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { Card } from '../components/Card.jsx';
@@ -9,17 +9,27 @@ export default function Projects() {
   const [projects, setProjects] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', description: '', color: '#0ea5e9' });
+  const [error, setError] = useState(null);
+  const [saveError, setSaveError] = useState(null);
   const navigate = useNavigate();
 
-  const refresh = () => api.projects.list().then(setProjects);
+  const refresh = () => {
+    setError(null);
+    api.projects.list().then(setProjects).catch((err) => setError(err.message));
+  };
   useEffect(refresh, []);
 
   const submit = async (e) => {
     e.preventDefault();
-    await api.projects.create(form);
-    setShowForm(false);
-    setForm({ name: '', description: '', color: '#0ea5e9' });
-    refresh();
+    setSaveError(null);
+    try {
+      await api.projects.create(form);
+      setShowForm(false);
+      setForm({ name: '', description: '', color: '#0ea5e9' });
+      refresh();
+    } catch (err) {
+      setSaveError(err.message);
+    }
   };
 
   return (
@@ -36,6 +46,16 @@ export default function Projects() {
           <Plus size={16} /> New project
         </button>
       </div>
+
+      {error && (
+        <div className="flex items-center gap-3 rounded-xl2 border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+          <AlertTriangle size={18} className="shrink-0" />
+          <p className="flex-1">Couldn't load projects: {error}</p>
+          <button onClick={refresh} className="shrink-0 rounded-md bg-rose-500/20 px-2.5 py-1 text-xs font-medium hover:bg-rose-500/30">
+            Retry
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {projects.map((p) => (
@@ -80,6 +100,7 @@ export default function Projects() {
               onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
               className="h-9 w-16 rounded"
             />
+            {saveError && <p className="text-xs text-rose-400">{saveError}</p>}
             <div className="flex justify-end gap-2 pt-2">
               <button type="button" onClick={() => setShowForm(false)} className="rounded-lg px-4 py-2 text-sm text-slate-300 hover:bg-white/5">
                 Cancel

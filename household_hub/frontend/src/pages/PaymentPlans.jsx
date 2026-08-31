@@ -1,20 +1,26 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Trash2, Check } from 'lucide-react';
+import { Plus, Trash2, Check, Pencil } from 'lucide-react';
 import { api } from '../lib/api.js';
 import Modal from '../components/Modal.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
+import BillFormModal from '../components/BillFormModal.jsx';
+import MarkPaidModal from '../components/MarkPaidModal.jsx';
 
 const emptyPaycheck = { pay_date: new Date().toISOString().slice(0, 10), expected_amount: '', notes: '' };
 
 export default function PaymentPlans() {
   const [paychecks, setPaychecks] = useState([]);
   const [unassigned, setUnassigned] = useState([]);
+  const [members, setMembers] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyPaycheck);
+  const [editingBill, setEditingBill] = useState(null);
+  const [payingBill, setPayingBill] = useState(null);
 
   const refresh = () => {
     api.paychecks.list().then(setPaychecks);
     api.paychecks.unassignedBills().then(setUnassigned);
+    api.members.list().then(setMembers);
   };
   useEffect(refresh, []);
 
@@ -37,8 +43,9 @@ export default function PaymentPlans() {
     refresh();
   };
 
-  const markPaid = async (billId) => {
-    await api.bills.pay(billId);
+  const confirmPaid = async (amount) => {
+    await api.bills.pay(payingBill.id, { amount_paid: amount });
+    setPayingBill(null);
     refresh();
   };
 
@@ -84,7 +91,8 @@ export default function PaymentPlans() {
               paychecks={paychecks}
               onAssign={assignBill}
               onDragStart={onDragStart}
-              onMarkPaid={markPaid}
+              onMarkPaid={setPayingBill}
+              onEdit={setEditingBill}
             />
           ))}
           {unassigned.length === 0 && <EmptyHint text="Nothing left to assign." />}
@@ -107,7 +115,8 @@ export default function PaymentPlans() {
                 paychecks={paychecks}
                 onAssign={assignBill}
                 onDragStart={onDragStart}
-                onMarkPaid={markPaid}
+                onMarkPaid={setPayingBill}
+                onEdit={setEditingBill}
               />
             ))}
             {p.bills.length === 0 && <EmptyHint text="Drag a bill here, or use its dropdown." />}
@@ -160,6 +169,19 @@ export default function PaymentPlans() {
           </form>
         </Modal>
       )}
+
+      {editingBill && (
+        <BillFormModal
+          bill={editingBill}
+          members={members}
+          onClose={() => setEditingBill(null)}
+          onSaved={() => { setEditingBill(null); refresh(); }}
+        />
+      )}
+
+      {payingBill && (
+        <MarkPaidModal bill={payingBill} onClose={() => setPayingBill(null)} onConfirm={confirmPaid} />
+      )}
     </div>
   );
 }
@@ -187,7 +209,7 @@ function BoardColumn({ title, subtitle, tone = 'default', onDrop, onDragOver, on
   );
 }
 
-function BillCard({ bill, paychecks, onAssign, onDragStart, onMarkPaid }) {
+function BillCard({ bill, paychecks, onAssign, onDragStart, onMarkPaid, onEdit }) {
   return (
     <div
       draggable
@@ -199,13 +221,19 @@ function BillCard({ bill, paychecks, onAssign, onDragStart, onMarkPaid }) {
           <p className="text-sm font-medium">{bill.name}</p>
           <p className="text-xs text-slate-400">Due {bill.due_date}</p>
         </div>
-        <span className="text-sm font-semibold">${Number(bill.amount).toFixed(2)}</span>
+        <button
+          onClick={() => onEdit(bill)}
+          title="Edit bill"
+          className="flex items-center gap-1 text-sm font-semibold text-slate-200 hover:text-accent-soft"
+        >
+          ${Number(bill.amount).toFixed(2)} <Pencil size={11} className="text-slate-500" />
+        </button>
       </div>
       <div className="flex items-center justify-between gap-2">
         <StatusBadge status={bill.status} />
         {bill.status !== 'paid' && (
           <button
-            onClick={() => onMarkPaid(bill.id)}
+            onClick={() => onMarkPaid(bill)}
             className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-400 hover:bg-emerald-500/25"
           >
             <Check size={12} /> Paid

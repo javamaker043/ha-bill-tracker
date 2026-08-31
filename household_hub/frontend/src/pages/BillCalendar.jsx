@@ -47,7 +47,7 @@ export default function BillCalendar() {
         </div>
       </div>
 
-      <Card className="p-3">
+      <Card padding="p-3">
         <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-slate-500">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
             <div key={d} className="py-2">{d}</div>
