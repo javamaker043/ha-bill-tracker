@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.2
+
+- Fixed `POST /bills/:id/pay` (marking any bill paid) throwing
+  `RangeError: Too few parameter values were provided` on every call --
+  the payment-log INSERT was missing the bill's own id from its
+  parameter list. This is why "Mark paid" appeared broken everywhere,
+  even after 0.2.1 added the amount-editing UI for it.
+
 ## 0.2.1
 
 - Fixed "Mark paid" on both the Bills table and the Payment Plans board:
