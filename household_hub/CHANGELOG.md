@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.2.4
+
+- **Found and fixed the cause of all data disappearing on every add-on
+  update.** The HA base image's own `ENTRYPOINT` is s6-overlay's `/init`,
+  which curates (resets) the environment it hands to whatever it runs
+  unless told to keep it -- so our bare `CMD` was silently losing every
+  `ENV` set in the Dockerfile (`DB_PATH`, `PORT`, `NODE_ENV`). `DB_PATH`
+  fell back to the app's own in-container default path instead of
+  `/data`, which lives in the container's writable layer and gets wiped
+  on every update; `PORT`'s fallback happened to match the intended
+  value, which is why this went unnoticed until the boot logging added
+  in 0.2.3 caught it red-handed
+  (`DB_PATH=/app/data/household.db existed=false`).
+  Fixed by making the Dockerfile's own `ENTRYPOINT` bypass s6-overlay
+  entirely instead of layering `CMD` under it.
+
+  **Existing installs**: this fix only takes effect going forward. Any
+  data from before this update was written to the non-persistent path
+  and was already lost on each prior update -- there's nothing under
+  `/data` to recover from. Once this version is running, new data will
+  correctly persist across future updates.
+
 ## 0.2.3
 
 - Investigating reports of add-on data disappearing after clicking
@@ -17,6 +39,7 @@
     WAL-mode database and closing it cleanly before exiting, instead of
     being killed mid-write with no shutdown handling at all, which is
     how Supervisor stops the old container during an update.
+
 ## 0.2.2
 
 - Fixed `POST /bills/:id/pay` (marking any bill paid) throwing

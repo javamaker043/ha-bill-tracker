@@ -35,4 +35,13 @@ ENV DB_PATH=/data/household.db
 
 EXPOSE 8099
 
-CMD [ "/run.sh" ]
+# The HA base image's own ENTRYPOINT is s6-overlay's /init, which curates
+# (resets) the process environment it hands to whatever it's told to run
+# unless explicitly configured to keep it -- so a bare `CMD` here silently
+# lost every ENV set above (DB_PATH, PORT, NODE_ENV), landing DB_PATH back
+# on its non-persistent in-container fallback path instead of /data and
+# wiping all data on every add-on update. init: false in config.yaml
+# already means this add-on doesn't need Supervisor's own init wrapper, and
+# run.sh's own `exec node ...` is enough process handling on its own, so
+# ENTRYPOINT here bypasses s6-overlay entirely instead of layering under it.
+ENTRYPOINT [ "/run.sh" ]
