@@ -17,6 +17,13 @@
     WAL-mode database and closing it cleanly before exiting, instead of
     being killed mid-write with no shutdown handling at all, which is
     how Supervisor stops the old container during an update.
+## 0.2.2
+
+- Fixed `POST /bills/:id/pay` (marking any bill paid) throwing
+  `RangeError: Too few parameter values were provided` on every call --
+  the payment-log INSERT was missing the bill's own id from its
+  parameter list. This is why "Mark paid" appeared broken everywhere,
+  even after 0.2.1 added the amount-editing UI for it.
 
 ## 0.2.1
 

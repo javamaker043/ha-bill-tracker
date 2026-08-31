@@ -102,6 +102,7 @@ router.post('/:id/pay', (req, res) => {
   const { amount_paid, paid_by } = req.body;
 
   db.prepare('INSERT INTO bill_payments (bill_id, amount_paid, paid_by) VALUES (?, ?, ?)').run(
+    bill.id,
     amount_paid ?? bill.amount,
     paid_by || null
   );
