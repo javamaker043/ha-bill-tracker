@@ -8,6 +8,17 @@ const DB_PATH = process.env.DB_PATH || path.join(__dirname, '../../data/househol
 
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
+// Log what we found on disk *before* opening -- if DB_PATH already existed
+// with a non-trivial size, the volume survived; if it's missing/empty, the
+// persistent volume itself was wiped (a Supervisor/host issue, not
+// something this app did). This is the one piece of evidence that tells
+// the two apart after a report of "data disappears on update".
+const existedBefore = fs.existsSync(DB_PATH);
+const sizeBefore = existedBefore ? fs.statSync(DB_PATH).size : 0;
+console.log(
+  `[household-hub] DB_PATH=${DB_PATH} existed=${existedBefore} size=${sizeBefore} bytes`
+);
+
 export const db = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
@@ -29,5 +40,14 @@ ensureColumn('members', 'ha_user_id', 'TEXT');
 ensureColumn('members', 'is_admin', 'INTEGER NOT NULL DEFAULT 0');
 ensureColumn('members', 'access_revoked', 'INTEGER NOT NULL DEFAULT 0');
 ensureColumn('bills', 'paycheck_id', 'INTEGER REFERENCES paychecks(id) ON DELETE SET NULL');
+
+// Row counts after schema/migration, still tied to the pre-open existence
+// check above: e.g. "existed=true size=45056 bytes" followed by
+// "bills=0" means the file was there but empty/fresh -- a different
+// problem (corruption, wrong file) than "existed=false" (volume wiped).
+const counts = ['members', 'bills', 'projects', 'paychecks']
+  .map((table) => `${table}=${db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n}`)
+  .join(' ');
+console.log(`[household-hub] row counts at boot: ${counts}`);
 
 export default db;
