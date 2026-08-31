@@ -5,12 +5,14 @@ import { Card } from '../components/Card.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
 import MemberPill from '../components/MemberPill.jsx';
 import BillFormModal from '../components/BillFormModal.jsx';
+import MarkPaidModal from '../components/MarkPaidModal.jsx';
 
 export default function Bills() {
   const [bills, setBills] = useState([]);
   const [members, setMembers] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [payingBill, setPayingBill] = useState(null);
 
   const refresh = () => {
     api.bills.list().then(setBills);
@@ -21,8 +23,9 @@ export default function Bills() {
 
   const memberById = useMemo(() => Object.fromEntries(members.map((m) => [m.id, m])), [members]);
 
-  const markPaid = async (id) => {
-    await api.bills.pay(id);
+  const confirmPaid = async (amount) => {
+    await api.bills.pay(payingBill.id, { amount_paid: amount });
+    setPayingBill(null);
     refresh();
   };
 
@@ -41,7 +44,7 @@ export default function Bills() {
         </button>
       </div>
 
-      <Card className="overflow-x-auto p-0">
+      <Card className="overflow-x-auto" padding="p-0">
         <table className="w-full min-w-[640px] text-sm">
           <thead className="bg-surface-muted text-left text-xs uppercase tracking-wide text-slate-400">
             <tr>
@@ -71,7 +74,7 @@ export default function Bills() {
                 <td className="px-4 py-3 text-right">
                   {b.status !== 'paid' && (
                     <button
-                      onClick={() => markPaid(b.id)}
+                      onClick={() => setPayingBill(b)}
                       className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-2.5 py-1 text-xs font-medium text-emerald-400 hover:bg-emerald-500/25"
                     >
                       <Check size={14} /> Mark paid
@@ -98,6 +101,10 @@ export default function Bills() {
           onClose={() => setShowForm(false)}
           onSaved={() => { setShowForm(false); refresh(); }}
         />
+      )}
+
+      {payingBill && (
+        <MarkPaidModal bill={payingBill} onClose={() => setPayingBill(null)} onConfirm={confirmPaid} />
       )}
     </div>
   );

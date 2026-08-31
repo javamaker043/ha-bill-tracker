@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.2.1
+
+- Fixed "Mark paid" on both the Bills table and the Payment Plans board:
+  it now opens a confirmation dialog with an editable amount instead of
+  instantly marking the bill paid for the full listed amount with no way
+  to say what was actually paid.
+- Payment Plans bill cards can now be edited (amount, due date, etc.)
+  directly from the board via a pencil icon, instead of only being
+  editable from the Bills table.
+- Projects and the project detail page now show a proper error message
+  with a retry button when a request fails, instead of hanging on
+  "Loading…" indefinitely or surfacing only as the generic top-level
+  crash banner.
+- Fixed a Tailwind class-ordering issue where `Card`'s own `p-5` padding
+  silently overrode the `p-0`/`p-3` overrides passed in on the Bills
+  table, the project task list, and the bill calendar, causing extra
+  unwanted padding.
+
 ## 0.2.0
 
 - Added a **Payment Plans** tab: add upcoming paychecks (date + expected
