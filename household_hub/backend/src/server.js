@@ -14,6 +14,7 @@ import categoriesRouter from './routes/categories.js';
 import paychecksRouter from './routes/paychecks.js';
 import { startReminderScheduler } from './services/reminders.js';
 import { importMembersOnFirstBoot } from './services/bootstrap.js';
+import db from './db/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -44,7 +45,29 @@ await importMembersOnFirstBoot().catch((err) =>
   console.error('[bootstrap] failed to import members from Home Assistant', err)
 );
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`[household-hub] listening on :${PORT}`);
   startReminderScheduler();
 });
+
+// Supervisor sends SIGTERM (not SIGKILL) to stop the old container during
+// an update, but Node has no default handler for it, so without this the
+// process is killed mid-request with the WAL file possibly still holding
+// uncheckpointed writes. This forces a checkpoint into the main db file and
+// closes the connection cleanly before exiting.
+function shutdown(signal) {
+  console.log(`[household-hub] received ${signal}, shutting down`);
+  server.close(() => {
+    try {
+      db.pragma('wal_checkpoint(TRUNCATE)');
+      db.close();
+      console.log('[household-hub] database closed cleanly');
+    } catch (err) {
+      console.error('[household-hub] error closing database', err);
+    }
+    process.exit(0);
+  });
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

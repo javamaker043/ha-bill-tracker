@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.2.3
+
+- Investigating reports of add-on data disappearing after clicking
+  **Update** in the Supervisor. Nothing in this app's code deletes or
+  overwrites `/data` (schema setup is additive-only, and `/data` is
+  Supervisor's documented persistent volume that's supposed to survive
+  updates), so this adds two things to get real evidence next time it
+  happens instead of guessing further:
+  - Startup now logs whether `/data/household.db` already existed and
+    its size *before* opening it, plus row counts for the core tables
+    right after boot -- so the add-on log from the next update will show
+    whether the volume itself was empty (a Supervisor/host issue) or the
+    file was there but the app didn't see the data (a different bug).
+  - The server now handles `SIGTERM`/`SIGINT` by checkpointing the
+    WAL-mode database and closing it cleanly before exiting, instead of
+    being killed mid-write with no shutdown handling at all, which is
+    how Supervisor stops the old container during an update.
+
 ## 0.2.1
 
 - Fixed "Mark paid" on both the Bills table and the Payment Plans board:
