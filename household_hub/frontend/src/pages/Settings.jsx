@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Plus, Trash2, ShieldCheck, ShieldOff, Ban, RotateCcw } from 'lucide-react';
 import { api } from '../lib/api.js';
 import { Card } from '../components/Card.jsx';
+import BulkImportBills from '../components/BulkImportBills.jsx';
 
 export default function Settings() {
   const [members, setMembers] = useState([]);
@@ -177,6 +178,11 @@ export default function Settings() {
             <Plus size={16} />
           </button>
         </form>
+      </Card>
+
+      <Card>
+        <h3 className="mb-2 text-sm font-semibold text-slate-200">Bulk import bills</h3>
+        <BulkImportBills onImported={refresh} />
       </Card>
 
       <Card>
