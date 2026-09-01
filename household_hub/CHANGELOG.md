@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.2.11
+
+- Every dollar amount shown in the app (bills, balances, paycheck
+  totals, payment history, the dashboard, the calendar) now displays
+  with thousands separators -- "$9,329.00" instead of "9329.00" --
+  through a shared `formatCurrency` helper instead of each page's own
+  `toFixed(2)`. Editable amount fields are unchanged (still plain
+  number inputs; browsers don't support comma-formatted `type="number"`
+  inputs, and reformatting those live would need a bigger rework of
+  the input itself).
+- On Payment Plans, unassigned bills due within the next 25 days (or
+  already overdue) now render with a slightly lighter card background,
+  so what needs planning soonest stands out from the rest of the
+  Unassigned bills column at a glance.
+
 ## 0.2.10
 
 - Marking a bill paid that isn't currently assigned to a paycheck now
