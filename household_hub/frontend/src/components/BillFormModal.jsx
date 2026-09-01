@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import Modal from './Modal.jsx';
 import { api } from '../lib/api.js';
+import { isDebtCategory } from '../lib/billCategory.js';
 
 const empty = {
   name: '', amount: '', payee: '', category: 'Other', recurrence: 'monthly',
   due_date: new Date().toISOString().slice(0, 10), autopay: false,
-  assigned_to: '', reminder_days_before: 3, notes: '',
+  assigned_to: '', reminder_days_before: 3, current_balance: '', notes: '',
 };
 
 const ADD_NEW = '__add_new__';
@@ -39,7 +40,12 @@ export default function BillFormModal({ bill, members, onClose, onSaved }) {
     e.preventDefault();
     setSaving(true);
     try {
-      const payload = { ...form, amount: Number(form.amount), assigned_to: form.assigned_to || null };
+      const payload = {
+        ...form,
+        amount: Number(form.amount),
+        assigned_to: form.assigned_to || null,
+        current_balance: form.current_balance === '' || form.current_balance == null ? null : Number(form.current_balance),
+      };
       if (bill) await api.bills.update(bill.id, payload);
       else await api.bills.create(payload);
       onSaved();
@@ -109,6 +115,18 @@ export default function BillFormModal({ bill, members, onClose, onSaved }) {
             )}
           </Field>
         </div>
+        {isDebtCategory(form.category) && (
+          <Field label="Current statement balance">
+            <input
+              type="number"
+              step="0.01"
+              value={form.current_balance ?? ''}
+              onChange={set('current_balance')}
+              placeholder="Balance shown on your latest statement"
+              className={inputClass}
+            />
+          </Field>
+        )}
         <Field label="Assigned to">
           <select value={form.assigned_to || ''} onChange={set('assigned_to')} className={inputClass}>
             <option value="">Unassigned</option>

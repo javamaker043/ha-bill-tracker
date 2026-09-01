@@ -1,18 +1,23 @@
 import React, { useState } from 'react';
 import Modal from './Modal.jsx';
+import { isDebtCategory } from '../lib/billCategory.js';
 
 export default function MarkPaidModal({ bill, members, onClose, onConfirm }) {
   const [amount, setAmount] = useState(bill.amount);
   const [paidBy, setPaidBy] = useState('');
+  const [statementBalance, setStatementBalance] = useState(bill.current_balance ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+
+  const balanceRequired = isDebtCategory(bill.category);
 
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
     setError(null);
     try {
-      await onConfirm(Number(amount) || 0, paidBy ? Number(paidBy) : null);
+      const balance = statementBalance === '' ? null : Number(statementBalance);
+      await onConfirm(Number(amount) || 0, paidBy ? Number(paidBy) : null, balance);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -38,6 +43,24 @@ export default function MarkPaidModal({ bill, members, onClose, onConfirm }) {
         <p className="text-xs text-slate-500">
           Bill amount is ${Number(bill.amount).toFixed(2)}. Adjust if you paid a different amount.
         </p>
+        {balanceRequired && (
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-slate-400">Current statement balance</span>
+            <input
+              required
+              type="number"
+              step="0.01"
+              value={statementBalance}
+              onChange={(e) => setStatementBalance(e.target.value)}
+              placeholder="Balance shown on your latest statement"
+              className="w-full rounded-lg border border-white/10 bg-surface-muted px-3 py-2 text-sm outline-none focus:border-accent"
+            />
+            <span className="mt-1 block text-xs text-slate-500">
+              {bill.category} bills track a running balance -- enter what your latest statement shows,
+              even if it's the same as last time.
+            </span>
+          </label>
+        )}
         {members?.length > 0 && (
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-slate-400">Paid by (optional)</span>

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Modal from './Modal.jsx';
 import MemberPill from './MemberPill.jsx';
 import { api } from '../lib/api.js';
+import { isDebtCategory } from '../lib/billCategory.js';
 
 // SQLite's datetime('now') returns UTC with no timezone marker, so append
 // one before parsing or the Date constructor treats it as local time.
@@ -22,6 +23,7 @@ export default function PaymentHistoryModal({ bill, members, onClose }) {
   }, [bill.id]);
 
   const memberById = Object.fromEntries((members || []).map((m) => [m.id, m]));
+  const showBalance = isDebtCategory(bill.category) || (payments || []).some((p) => p.statement_balance != null);
 
   return (
     <Modal title={`Payment history — ${bill.name}`} onClose={onClose}>
@@ -37,6 +39,7 @@ export default function PaymentHistoryModal({ bill, members, onClose }) {
               <tr>
                 <th className="pb-2 pr-3">Date</th>
                 <th className="pb-2 pr-3">Amount</th>
+                {showBalance && <th className="pb-2 pr-3">Balance</th>}
                 <th className="pb-2">Paid by</th>
               </tr>
             </thead>
@@ -45,6 +48,11 @@ export default function PaymentHistoryModal({ bill, members, onClose }) {
                 <tr key={p.id} className="border-t border-white/5">
                   <td className="py-2 pr-3 text-slate-300">{formatPaidDate(p.paid_date)}</td>
                   <td className="py-2 pr-3 font-medium">${Number(p.amount_paid).toFixed(2)}</td>
+                  {showBalance && (
+                    <td className="py-2 pr-3 text-slate-300">
+                      {p.statement_balance != null ? `$${Number(p.statement_balance).toFixed(2)}` : '—'}
+                    </td>
+                  )}
                   <td className="py-2">
                     <MemberPill member={memberById[p.paid_by]} />
                   </td>

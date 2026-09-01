@@ -45,8 +45,8 @@ export default function PaymentPlans() {
     refresh();
   };
 
-  const confirmPaid = async (amount, paidBy) => {
-    await api.bills.pay(payingBill.id, { amount_paid: amount, paid_by: paidBy });
+  const confirmPaid = async (amount, paidBy, statementBalance) => {
+    await api.bills.pay(payingBill.id, { amount_paid: amount, paid_by: paidBy, statement_balance: statementBalance });
     setPayingBill(null);
     refresh();
   };

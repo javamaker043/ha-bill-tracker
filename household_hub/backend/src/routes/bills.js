@@ -45,13 +45,13 @@ router.get('/:id', (req, res) => {
 router.post('/', (req, res) => {
   const {
     name, amount, payee, category, recurrence, due_date,
-    autopay, assigned_to, reminder_days_before, notes,
+    autopay, assigned_to, reminder_days_before, current_balance, notes,
   } = req.body;
   if (!name || !due_date) return res.status(400).json({ error: 'name and due_date are required' });
   const info = db
     .prepare(
-      `INSERT INTO bills (name, amount, payee, category, recurrence, due_date, autopay, assigned_to, reminder_days_before, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO bills (name, amount, payee, category, recurrence, due_date, autopay, assigned_to, reminder_days_before, current_balance, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       name,
@@ -63,6 +63,7 @@ router.post('/', (req, res) => {
       autopay ? 1 : 0,
       assigned_to || null,
       reminder_days_before ?? 3,
+      current_balance ?? null,
       notes || null
     );
   res.status(201).json(db.prepare('SELECT * FROM bills WHERE id = ?').get(info.lastInsertRowid));
@@ -73,12 +74,12 @@ router.put('/:id', (req, res) => {
   if (!existing) return res.status(404).json({ error: 'not found' });
   const merged = { ...existing, ...req.body };
   db.prepare(
-    `UPDATE bills SET name=?, amount=?, payee=?, category=?, recurrence=?, due_date=?, autopay=?, assigned_to=?, reminder_days_before=?, status=?, notes=?, updated_at=datetime('now')
+    `UPDATE bills SET name=?, amount=?, payee=?, category=?, recurrence=?, due_date=?, autopay=?, assigned_to=?, reminder_days_before=?, status=?, current_balance=?, notes=?, updated_at=datetime('now')
      WHERE id=?`
   ).run(
     merged.name, merged.amount, merged.payee, merged.category, merged.recurrence,
     merged.due_date, merged.autopay ? 1 : 0, merged.assigned_to, merged.reminder_days_before,
-    merged.status, merged.notes, req.params.id
+    merged.status, merged.current_balance ?? null, merged.notes, req.params.id
   );
   res.json(db.prepare('SELECT * FROM bills WHERE id = ?').get(req.params.id));
 });
@@ -99,24 +100,33 @@ router.patch('/:id/paycheck', (req, res) => {
 router.post('/:id/pay', (req, res) => {
   const bill = db.prepare('SELECT * FROM bills WHERE id = ?').get(req.params.id);
   if (!bill) return res.status(404).json({ error: 'not found' });
-  const { amount_paid, paid_by } = req.body;
+  const { amount_paid, paid_by, statement_balance } = req.body;
 
-  db.prepare('INSERT INTO bill_payments (bill_id, amount_paid, paid_by) VALUES (?, ?, ?)').run(
+  db.prepare(
+    'INSERT INTO bill_payments (bill_id, amount_paid, paid_by, statement_balance) VALUES (?, ?, ?, ?)'
+  ).run(
     bill.id,
     amount_paid ?? bill.amount,
-    paid_by || null
+    paid_by || null,
+    statement_balance ?? null
   );
 
+  // Only overwrite the bill's stored balance when this payment actually
+  // reported one -- otherwise leave the last known balance as-is.
+  const currentBalance = statement_balance ?? bill.current_balance;
+
   if (bill.recurrence === 'once') {
-    db.prepare("UPDATE bills SET status='paid', updated_at=datetime('now') WHERE id=?").run(bill.id);
+    db.prepare(
+      "UPDATE bills SET status='paid', current_balance=?, updated_at=datetime('now') WHERE id=?"
+    ).run(currentBalance, bill.id);
   } else {
     // Rolling to the next occurrence starts a new, unplanned bill -- clear
     // any payment-plan assignment so it returns to the unassigned pool
     // instead of staying glued to a paycheck that's already been spent.
     const nextDue = advanceDueDate(bill.due_date, bill.recurrence);
     db.prepare(
-      "UPDATE bills SET status='unpaid', due_date=?, paycheck_id=NULL, updated_at=datetime('now') WHERE id=?"
-    ).run(nextDue, bill.id);
+      "UPDATE bills SET status='unpaid', due_date=?, paycheck_id=NULL, current_balance=?, updated_at=datetime('now') WHERE id=?"
+    ).run(nextDue, currentBalance, bill.id);
   }
   res.json(db.prepare('SELECT * FROM bills WHERE id = ?').get(bill.id));
 });
