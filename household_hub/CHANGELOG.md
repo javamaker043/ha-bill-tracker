@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.7
+
+- Added a **Bulk import bills** section to Settings: paste a JSON array
+  of bills (or `{ "bills": [...] }`) to load a starting list, or build
+  one from scratch with "Add row" -- handy for entering a backlog from a
+  statement, spreadsheet, or notes app. Every field (name, amount, due
+  date, recurrence, category, assigned member, notes) is directly
+  editable in the table before anything is created, rows can be removed,
+  and category names that don't exist yet are created automatically.
+  Runs entirely client-side against your own instance's existing API --
+  nothing is sent anywhere else.
+
 ## 0.2.6
 
 - Added a payment history view: a clock icon next to every bill (on both
@@ -16,18 +28,6 @@
   as its own column in payment history. The Bills table also shows each
   debt bill's latest known balance at a glance, and it's editable
   directly from the bill's edit form too, not just through Mark paid.
-
-## 0.2.5
-
-- Added a **Bulk import bills** section to Settings: paste a JSON array
-  of bills (or `{ "bills": [...] }`) to load a starting list, or build
-  one from scratch with "Add row" -- handy for entering a backlog from a
-  statement, spreadsheet, or notes app. Every field (name, amount, due
-  date, recurrence, category, assigned member, notes) is directly
-  editable in the table before anything is created, rows can be removed,
-  and category names that don't exist yet are created automatically.
-  Runs entirely client-side against your own instance's existing API --
-  nothing is sent anywhere else.
 
 ## 0.2.4
 
