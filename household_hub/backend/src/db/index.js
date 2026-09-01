@@ -43,6 +43,7 @@ ensureColumn('bills', 'paycheck_id', 'INTEGER REFERENCES paychecks(id) ON DELETE
 ensureColumn('bills', 'current_balance', 'REAL');
 ensureColumn('bill_payments', 'statement_balance', 'REAL');
 ensureColumn('bill_payments', 'paycheck_id', 'INTEGER REFERENCES paychecks(id) ON DELETE SET NULL');
+ensureColumn('bill_payments', 'source', 'TEXT');
 
 // Row counts after schema/migration, still tied to the pre-open existence
 // check above: e.g. "existed=true size=45056 bytes" followed by
