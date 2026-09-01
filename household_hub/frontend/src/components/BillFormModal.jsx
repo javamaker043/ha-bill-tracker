@@ -6,7 +6,8 @@ import { isDebtCategory } from '../lib/billCategory.js';
 const empty = {
   name: '', amount: '', payee: '', category: 'Other', recurrence: 'monthly',
   due_date: new Date().toISOString().slice(0, 10), autopay: false,
-  assigned_to: '', reminder_days_before: 3, current_balance: '', notes: '',
+  assigned_to: '', reminder_days_before: 3, current_balance: '',
+  interest_rate: '', credit_limit: '', notes: '',
 };
 
 const ADD_NEW = '__add_new__';
@@ -45,6 +46,8 @@ export default function BillFormModal({ bill, members, onClose, onSaved }) {
         amount: Number(form.amount),
         assigned_to: form.assigned_to || null,
         current_balance: form.current_balance === '' || form.current_balance == null ? null : Number(form.current_balance),
+        interest_rate: form.interest_rate === '' || form.interest_rate == null ? null : Number(form.interest_rate),
+        credit_limit: form.credit_limit === '' || form.credit_limit == null ? null : Number(form.credit_limit),
       };
       if (bill) await api.bills.update(bill.id, payload);
       else await api.bills.create(payload);
@@ -116,16 +119,43 @@ export default function BillFormModal({ bill, members, onClose, onSaved }) {
           </Field>
         </div>
         {isDebtCategory(form.category) && (
-          <Field label="Current statement balance">
-            <input
-              type="number"
-              step="0.01"
-              value={form.current_balance ?? ''}
-              onChange={set('current_balance')}
-              placeholder="Balance shown on your latest statement"
-              className={inputClass}
-            />
-          </Field>
+          <>
+            <Field label="Current statement balance">
+              <input
+                type="number"
+                step="0.01"
+                value={form.current_balance ?? ''}
+                onChange={set('current_balance')}
+                placeholder="Balance shown on your latest statement"
+                className={inputClass}
+              />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Interest rate (APR %)">
+                <input
+                  type="number"
+                  step="0.01"
+                  value={form.interest_rate ?? ''}
+                  onChange={set('interest_rate')}
+                  placeholder="e.g. 24.99"
+                  className={inputClass}
+                />
+              </Field>
+              <Field label="Credit limit">
+                <input
+                  type="number"
+                  step="0.01"
+                  value={form.credit_limit ?? ''}
+                  onChange={set('credit_limit')}
+                  placeholder="optional"
+                  className={inputClass}
+                />
+              </Field>
+            </div>
+            <p className="text-xs text-slate-500">
+              Used by the Debt Management tab for payoff scenarios and credit utilization tracking.
+            </p>
+          </>
         )}
         <Field label="Assigned to">
           <select value={form.assigned_to || ''} onChange={set('assigned_to')} className={inputClass}>

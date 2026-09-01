@@ -56,6 +56,8 @@ CREATE TABLE IF NOT EXISTS bills (
   reminder_days_before INTEGER NOT NULL DEFAULT 3,
   status TEXT NOT NULL DEFAULT 'unpaid',          -- unpaid | paid | overdue
   current_balance REAL,                           -- latest known statement balance, for credit-card/loan bills
+  interest_rate REAL,                             -- APR percent (e.g. 24.99), for Debt Management payoff scenarios
+  credit_limit REAL,                              -- for Debt Management utilization tracking
   notes TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
