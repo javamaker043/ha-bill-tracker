@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS bills (
   paycheck_id INTEGER REFERENCES paychecks(id) ON DELETE SET NULL, -- payment-plan assignment
   reminder_days_before INTEGER NOT NULL DEFAULT 3,
   status TEXT NOT NULL DEFAULT 'unpaid',          -- unpaid | paid | overdue
+  current_balance REAL,                           -- latest known statement balance, for credit-card/loan bills
   notes TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -65,7 +66,8 @@ CREATE TABLE IF NOT EXISTS bill_payments (
   bill_id INTEGER NOT NULL REFERENCES bills(id) ON DELETE CASCADE,
   amount_paid REAL NOT NULL,
   paid_date TEXT NOT NULL DEFAULT (datetime('now')),
-  paid_by INTEGER REFERENCES members(id) ON DELETE SET NULL
+  paid_by INTEGER REFERENCES members(id) ON DELETE SET NULL,
+  statement_balance REAL                          -- balance as of this payment, for credit-card/loan bills
 );
 
 CREATE TABLE IF NOT EXISTS projects (
