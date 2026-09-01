@@ -3,6 +3,7 @@ import { api } from '../lib/api.js';
 import { Card, StatCard } from '../components/Card.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
 import MemberPill from '../components/MemberPill.jsx';
+import { formatCurrency } from '../lib/format.js';
 
 export default function Dashboard() {
   const [bills, setBills] = useState([]);
@@ -45,7 +46,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Overdue bills" value={overdueCount} tone={overdueCount ? 'danger' : 'good'} />
         <StatCard label="Due this week" value={dueThisWeek} tone={dueThisWeek ? 'warn' : 'good'} />
-        <StatCard label="Monthly bills total" value={`$${monthlyTotal.toFixed(2)}`} />
+        <StatCard label="Monthly bills total" value={formatCurrency(monthlyTotal)} />
         <StatCard label="Open tasks" value={tasks.length} />
       </div>
 
@@ -63,7 +64,7 @@ export default function Dashboard() {
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium">${Number(b.amount).toFixed(2)}</span>
+                  <span className="text-sm font-medium">{formatCurrency(b.amount)}</span>
                   <StatusBadge status={b.status} />
                 </div>
               </div>

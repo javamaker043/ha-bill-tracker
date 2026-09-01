@@ -3,6 +3,7 @@ import Modal from './Modal.jsx';
 import MemberPill from './MemberPill.jsx';
 import { api } from '../lib/api.js';
 import { isDebtCategory } from '../lib/billCategory.js';
+import { formatCurrency } from '../lib/format.js';
 
 // SQLite's datetime('now') returns UTC with no timezone marker, so append
 // one before parsing or the Date constructor treats it as local time.
@@ -54,10 +55,10 @@ export default function PaymentHistoryModal({ bill, members, onClose }) {
               {payments.map((p) => (
                 <tr key={p.id} className="border-t border-white/5">
                   <td className="py-2 pr-3 text-slate-300">{formatPaidDate(p.paid_date)}</td>
-                  <td className="py-2 pr-3 font-medium">${Number(p.amount_paid).toFixed(2)}</td>
+                  <td className="py-2 pr-3 font-medium">{formatCurrency(p.amount_paid)}</td>
                   {showBalance && (
                     <td className="py-2 pr-3 text-slate-300">
-                      {p.statement_balance != null ? `$${Number(p.statement_balance).toFixed(2)}` : '—'}
+                      {p.statement_balance != null ? formatCurrency(p.statement_balance) : '—'}
                     </td>
                   )}
                   <td className="py-2 pr-3 text-slate-300">{paidFromLabel(p)}</td>
