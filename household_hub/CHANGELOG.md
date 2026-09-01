@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.5
+
+- Added a **Bulk import bills** section to Settings: paste a JSON array
+  of bills (or `{ "bills": [...] }`) to create many at once instead of
+  one at a time through the Add bill form -- handy for entering a
+  backlog from a statement, spreadsheet, or notes app. Shows a preview
+  with per-row validation before importing, matches `assigned_to_name`
+  against existing household members, and auto-creates any category
+  names that don't already exist. Runs entirely client-side against
+  your own instance's existing API -- nothing is sent anywhere else.
+
 ## 0.2.4
 
 - **Found and fixed the cause of all data disappearing on every add-on
