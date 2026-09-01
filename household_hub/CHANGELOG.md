@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.6
+
+- Added a payment history view: a clock icon next to every bill (on both
+  the Bills table and each Payment Plans card) opens a list of every
+  time that bill has been paid, with the date, amount, and who paid it.
+  The backend has logged this to a `bill_payments` table since the
+  first release, but there was previously no way to see it anywhere in
+  the app.
+- "Mark paid" now also asks who paid, recorded alongside the amount and
+  date in that history (optional -- defaults to unspecified).
+
 ## 0.2.4
 
 - **Found and fixed the cause of all data disappearing on every add-on

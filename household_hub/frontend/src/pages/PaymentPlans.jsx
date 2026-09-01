@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Trash2, Check, Pencil } from 'lucide-react';
+import { Plus, Trash2, Check, Pencil, History } from 'lucide-react';
 import { api } from '../lib/api.js';
 import Modal from '../components/Modal.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
 import BillFormModal from '../components/BillFormModal.jsx';
 import MarkPaidModal from '../components/MarkPaidModal.jsx';
+import PaymentHistoryModal from '../components/PaymentHistoryModal.jsx';
 
 const emptyPaycheck = { pay_date: new Date().toISOString().slice(0, 10), expected_amount: '', notes: '' };
 
@@ -16,6 +17,7 @@ export default function PaymentPlans() {
   const [form, setForm] = useState(emptyPaycheck);
   const [editingBill, setEditingBill] = useState(null);
   const [payingBill, setPayingBill] = useState(null);
+  const [historyBill, setHistoryBill] = useState(null);
 
   const refresh = () => {
     api.paychecks.list().then(setPaychecks);
@@ -43,8 +45,8 @@ export default function PaymentPlans() {
     refresh();
   };
 
-  const confirmPaid = async (amount) => {
-    await api.bills.pay(payingBill.id, { amount_paid: amount });
+  const confirmPaid = async (amount, paidBy) => {
+    await api.bills.pay(payingBill.id, { amount_paid: amount, paid_by: paidBy });
     setPayingBill(null);
     refresh();
   };
@@ -93,6 +95,7 @@ export default function PaymentPlans() {
               onDragStart={onDragStart}
               onMarkPaid={setPayingBill}
               onEdit={setEditingBill}
+              onHistory={setHistoryBill}
             />
           ))}
           {unassigned.length === 0 && <EmptyHint text="Nothing left to assign." />}
@@ -117,6 +120,7 @@ export default function PaymentPlans() {
                 onDragStart={onDragStart}
                 onMarkPaid={setPayingBill}
                 onEdit={setEditingBill}
+                onHistory={setHistoryBill}
               />
             ))}
             {p.bills.length === 0 && <EmptyHint text="Drag a bill here, or use its dropdown." />}
@@ -180,7 +184,11 @@ export default function PaymentPlans() {
       )}
 
       {payingBill && (
-        <MarkPaidModal bill={payingBill} onClose={() => setPayingBill(null)} onConfirm={confirmPaid} />
+        <MarkPaidModal bill={payingBill} members={members} onClose={() => setPayingBill(null)} onConfirm={confirmPaid} />
+      )}
+
+      {historyBill && (
+        <PaymentHistoryModal bill={historyBill} members={members} onClose={() => setHistoryBill(null)} />
       )}
     </div>
   );
@@ -209,7 +217,7 @@ function BoardColumn({ title, subtitle, tone = 'default', onDrop, onDragOver, on
   );
 }
 
-function BillCard({ bill, paychecks, onAssign, onDragStart, onMarkPaid, onEdit }) {
+function BillCard({ bill, paychecks, onAssign, onDragStart, onMarkPaid, onEdit, onHistory }) {
   return (
     <div
       draggable
@@ -230,7 +238,12 @@ function BillCard({ bill, paychecks, onAssign, onDragStart, onMarkPaid, onEdit }
         </button>
       </div>
       <div className="flex items-center justify-between gap-2">
-        <StatusBadge status={bill.status} />
+        <div className="flex items-center gap-2">
+          <StatusBadge status={bill.status} />
+          <button onClick={() => onHistory(bill)} title="Payment history" className="text-slate-500 hover:text-white">
+            <History size={13} />
+          </button>
+        </div>
         {bill.status !== 'paid' && (
           <button
             onClick={() => onMarkPaid(bill)}

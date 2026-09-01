@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, Check } from 'lucide-react';
+import { Plus, Check, History } from 'lucide-react';
 import { api } from '../lib/api.js';
 import { Card } from '../components/Card.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
 import MemberPill from '../components/MemberPill.jsx';
 import BillFormModal from '../components/BillFormModal.jsx';
 import MarkPaidModal from '../components/MarkPaidModal.jsx';
+import PaymentHistoryModal from '../components/PaymentHistoryModal.jsx';
 
 export default function Bills() {
   const [bills, setBills] = useState([]);
@@ -13,6 +14,7 @@ export default function Bills() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [payingBill, setPayingBill] = useState(null);
+  const [historyBill, setHistoryBill] = useState(null);
 
   const refresh = () => {
     api.bills.list().then(setBills);
@@ -23,8 +25,8 @@ export default function Bills() {
 
   const memberById = useMemo(() => Object.fromEntries(members.map((m) => [m.id, m])), [members]);
 
-  const confirmPaid = async (amount) => {
-    await api.bills.pay(payingBill.id, { amount_paid: amount });
+  const confirmPaid = async (amount, paidBy) => {
+    await api.bills.pay(payingBill.id, { amount_paid: amount, paid_by: paidBy });
     setPayingBill(null);
     refresh();
   };
@@ -72,14 +74,23 @@ export default function Bills() {
                 <td className="px-4 py-3"><MemberPill member={memberById[b.assigned_to]} /></td>
                 <td className="px-4 py-3"><StatusBadge status={b.status} /></td>
                 <td className="px-4 py-3 text-right">
-                  {b.status !== 'paid' && (
+                  <div className="flex items-center justify-end gap-2">
                     <button
-                      onClick={() => setPayingBill(b)}
-                      className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-2.5 py-1 text-xs font-medium text-emerald-400 hover:bg-emerald-500/25"
+                      onClick={() => setHistoryBill(b)}
+                      title="Payment history"
+                      className="text-slate-500 hover:text-white"
                     >
-                      <Check size={14} /> Mark paid
+                      <History size={16} />
                     </button>
-                  )}
+                    {b.status !== 'paid' && (
+                      <button
+                        onClick={() => setPayingBill(b)}
+                        className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-2.5 py-1 text-xs font-medium text-emerald-400 hover:bg-emerald-500/25"
+                      >
+                        <Check size={14} /> Mark paid
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -104,7 +115,11 @@ export default function Bills() {
       )}
 
       {payingBill && (
-        <MarkPaidModal bill={payingBill} onClose={() => setPayingBill(null)} onConfirm={confirmPaid} />
+        <MarkPaidModal bill={payingBill} members={members} onClose={() => setPayingBill(null)} onConfirm={confirmPaid} />
+      )}
+
+      {historyBill && (
+        <PaymentHistoryModal bill={historyBill} members={members} onClose={() => setHistoryBill(null)} />
       )}
     </div>
   );
