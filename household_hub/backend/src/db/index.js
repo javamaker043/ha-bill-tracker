@@ -23,6 +23,15 @@ export const db = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
+// Captured before schema.sql runs: whether this is a genuinely brand-new
+// database (no categories table yet) vs. an existing one being upgraded --
+// needed below because ensureColumn() alone can't tell the two apart. On a
+// fresh install, CREATE TABLE bakes the is_debt column in from the start,
+// so ensureColumn('categories', 'is_debt', ...) finds it already there and
+// reports nothing was added, even though the seeded rows still need it set.
+const categoriesTableExisted =
+  db.prepare(`SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name='categories'`).get().n > 0;
+
 const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf-8');
 db.exec(schema);
 
@@ -53,11 +62,20 @@ ensureColumn('bill_payments', 'source', 'TEXT');
 ensureColumn('bills', 'interest_rate', 'REAL');
 ensureColumn('bills', 'credit_limit', 'REAL');
 
-if (ensureColumn('categories', 'is_debt', 'INTEGER NOT NULL DEFAULT 0')) {
-  // Preserve the old name-based heuristic's behavior for existing installs
-  // so upgrading doesn't silently change what "Mark paid" requires for
-  // bills already in categories that look debt-related -- one-time only,
-  // so a later manual toggle in Settings isn't overwritten on next boot.
+const isDebtColumnJustAdded = ensureColumn('categories', 'is_debt', 'INTEGER NOT NULL DEFAULT 0');
+
+if (!categoriesTableExisted) {
+  // Brand-new database: schema.sql just seeded the default categories, but
+  // couldn't safely set is_debt on them there (see schema.sql) -- do it
+  // here instead, exactly once, since categoriesTableExisted is only ever
+  // false on this first boot.
+  db.exec(`UPDATE categories SET is_debt = 1 WHERE name IN ('Credit Cards', 'Short-Term Loans')`);
+} else if (isDebtColumnJustAdded) {
+  // Existing database upgrading to this column for the first time: preserve
+  // the old name-based heuristic's behavior so upgrading doesn't silently
+  // change what "Mark paid" requires for bills already in categories that
+  // look debt-related. Only runs the moment the column is added -- never
+  // again, so a later manual toggle in Settings isn't overwritten on next boot.
   db.exec(
     `UPDATE categories SET is_debt = 1 WHERE is_debt = 0 AND (name LIKE '%credit%' OR name LIKE '%loan%')`
   );
