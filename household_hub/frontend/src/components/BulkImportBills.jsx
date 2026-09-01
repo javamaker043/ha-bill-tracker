@@ -30,6 +30,35 @@ const emptyRow = (key) => ({
 
 let nextKey = 1;
 
+// Pasting JSON out of a rich-text source (Word, OneNote, Notes, some chat
+// apps) commonly substitutes "smart quotes" for straight ones and can leave
+// a trailing comma behind from hand-editing -- both silently break
+// JSON.parse with a confusing "expected double-quoted property name" style
+// error. Try the raw text first, and only fall back to a normalized retry
+// (and say so) if that actually fixes it.
+function normalizeJsonText(text) {
+  return text
+    .replace(/[“”″]/g, '"')
+    .replace(/[‘’′]/g, "'")
+    .replace(/,(\s*[}\]])/g, '$1');
+}
+
+function parseJsonLoose(text) {
+  try {
+    return { data: JSON.parse(text), fixed: false };
+  } catch (err) {
+    const normalized = normalizeJsonText(text);
+    if (normalized !== text) {
+      try {
+        return { data: JSON.parse(normalized), fixed: true };
+      } catch {
+        // Normalizing didn't help -- surface the original error below.
+      }
+    }
+    throw err;
+  }
+}
+
 function rowIssues(row) {
   const issues = [];
   if (!row.name.trim()) issues.push('missing name');
@@ -47,6 +76,7 @@ function rowIssues(row) {
 export default function BulkImportBills({ onImported }) {
   const [text, setText] = useState('');
   const [parseError, setParseError] = useState(null);
+  const [autoFixed, setAutoFixed] = useState(false);
   const [rows, setRows] = useState(null);
   const [members, setMembers] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -61,9 +91,12 @@ export default function BulkImportBills({ onImported }) {
   const loadFromText = () => {
     setParseError(null);
     setResults(null);
+    setAutoFixed(false);
     let data;
     try {
-      data = JSON.parse(text);
+      const parsed = parseJsonLoose(text);
+      data = parsed.data;
+      setAutoFixed(parsed.fixed);
     } catch (err) {
       setParseError(`Invalid JSON: ${err.message}`);
       return;
@@ -193,6 +226,12 @@ export default function BulkImportBills({ onImported }) {
 
       {rows && (
         <>
+          {autoFixed && (
+            <p className="text-xs text-amber-400">
+              Your pasted text had smart quotes or a trailing comma that would've failed to parse --
+              auto-corrected. Double check the table below looks right before importing.
+            </p>
+          )}
           <div className="max-h-96 overflow-auto rounded-lg border border-white/10">
             <table className="w-full text-left text-xs">
               <thead className="sticky top-0 bg-surface-muted text-slate-400">

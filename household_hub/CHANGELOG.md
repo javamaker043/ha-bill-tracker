@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.8
+
+- Bulk import bills now tolerates the most common ways pasted JSON gets
+  mangled: "smart quotes" substituted by whatever app it was copied
+  through (Word, OneNote, Notes, etc.) and a trailing comma left over
+  from hand-editing. Both used to fail with a confusing "Expected
+  double-quoted property name" error; now the import auto-corrects them
+  and says so, rather than requiring a byte-perfect paste.
+
 ## 0.2.7
 
 - Added a **Bulk import bills** section to Settings: paste a JSON array
