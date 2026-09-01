@@ -102,13 +102,18 @@ router.post('/:id/pay', (req, res) => {
   if (!bill) return res.status(404).json({ error: 'not found' });
   const { amount_paid, paid_by, statement_balance } = req.body;
 
+  // Captured now, separately from the bill's own paycheck_id, because a
+  // recurring bill clears that live assignment below when it rolls forward
+  // -- this is what lets a paycheck's board column keep showing what was
+  // paid from it after the bill itself has moved on to its next occurrence.
   db.prepare(
-    'INSERT INTO bill_payments (bill_id, amount_paid, paid_by, statement_balance) VALUES (?, ?, ?, ?)'
+    'INSERT INTO bill_payments (bill_id, amount_paid, paid_by, statement_balance, paycheck_id) VALUES (?, ?, ?, ?, ?)'
   ).run(
     bill.id,
     amount_paid ?? bill.amount,
     paid_by || null,
-    statement_balance ?? null
+    statement_balance ?? null,
+    bill.paycheck_id ?? null
   );
 
   // Only overwrite the bill's stored balance when this payment actually

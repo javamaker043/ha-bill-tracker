@@ -42,6 +42,7 @@ ensureColumn('members', 'access_revoked', 'INTEGER NOT NULL DEFAULT 0');
 ensureColumn('bills', 'paycheck_id', 'INTEGER REFERENCES paychecks(id) ON DELETE SET NULL');
 ensureColumn('bills', 'current_balance', 'REAL');
 ensureColumn('bill_payments', 'statement_balance', 'REAL');
+ensureColumn('bill_payments', 'paycheck_id', 'INTEGER REFERENCES paychecks(id) ON DELETE SET NULL');
 
 // Row counts after schema/migration, still tied to the pre-open existence
 // check above: e.g. "existed=true size=45056 bytes" followed by
