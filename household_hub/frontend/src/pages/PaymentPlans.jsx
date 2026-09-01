@@ -6,8 +6,17 @@ import StatusBadge from '../components/StatusBadge.jsx';
 import BillFormModal from '../components/BillFormModal.jsx';
 import MarkPaidModal from '../components/MarkPaidModal.jsx';
 import PaymentHistoryModal from '../components/PaymentHistoryModal.jsx';
+import { formatCurrency } from '../lib/format.js';
 
 const emptyPaycheck = { pay_date: new Date().toISOString().slice(0, 10), expected_amount: '', notes: '' };
+
+// Whole days between today and a bill's due date, so an unassigned bill due
+// soon (or already overdue -- still "needs to be paid") can be flagged in
+// the board without waiting on the separate overdue/paid status computation.
+function daysUntilDue(dueDate) {
+  const today = new Date(new Date().toDateString());
+  return Math.round((new Date(dueDate) - today) / 86400000);
+}
 
 export default function PaymentPlans() {
   const [paychecks, setPaychecks] = useState([]);
@@ -111,6 +120,7 @@ export default function PaymentPlans() {
               onMarkPaid={setPayingBill}
               onEdit={setEditingBill}
               onHistory={setHistoryBill}
+              dueSoon={daysUntilDue(b.due_date) <= 25}
             />
           ))}
           {unassigned.length === 0 && <EmptyHint text="Nothing left to assign." />}
@@ -252,25 +262,25 @@ function BoardColumn({ title, subtitle, onDrop, onDragOver, onDelete, children }
 function PaycheckTotals({ paycheck: p }) {
   return (
     <div className="space-y-0.5">
-      <p>Available ${Number(p.expected_amount).toFixed(2)}</p>
+      <p>Available {formatCurrency(p.expected_amount)}</p>
       <p>
-        Planned ${p.assigned_total.toFixed(2)} · Spent ${p.paid_total.toFixed(2)}
+        Planned {formatCurrency(p.assigned_total)} · Spent {formatCurrency(p.paid_total)}
       </p>
       <p className={`font-medium ${p.remaining < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-        Remaining ${p.remaining.toFixed(2)}
+        Remaining {formatCurrency(p.remaining)}
       </p>
     </div>
   );
 }
 
-function BillCard({ bill, paychecks, onAssign, onDragStart, onMarkPaid, onEdit, onHistory }) {
+function BillCard({ bill, paychecks, onAssign, onDragStart, onMarkPaid, onEdit, onHistory, dueSoon }) {
   return (
     <div
       draggable
       onDragStart={(e) => onDragStart(e, bill.id)}
-      className={`cursor-grab space-y-2 rounded-lg border border-white/5 bg-surface-muted p-3 active:cursor-grabbing ${
-        bill.status === 'paid' ? 'opacity-50' : ''
-      }`}
+      className={`cursor-grab space-y-2 rounded-lg border border-white/5 p-3 active:cursor-grabbing ${
+        dueSoon && bill.status !== 'paid' ? 'bg-[#282c3b]' : 'bg-surface-muted'
+      } ${bill.status === 'paid' ? 'opacity-50' : ''}`}
     >
       <div className="flex items-start justify-between gap-2">
         <div>
@@ -282,7 +292,7 @@ function BillCard({ bill, paychecks, onAssign, onDragStart, onMarkPaid, onEdit, 
           title="Edit bill"
           className="flex items-center gap-1 text-sm font-semibold text-slate-200 hover:text-accent-soft"
         >
-          ${Number(bill.amount).toFixed(2)} <Pencil size={11} className="text-slate-500" />
+          {formatCurrency(bill.amount)} <Pencil size={11} className="text-slate-500" />
         </button>
       </div>
       <div className="flex items-center justify-between gap-2">
@@ -309,7 +319,7 @@ function BillCard({ bill, paychecks, onAssign, onDragStart, onMarkPaid, onEdit, 
         <option value="">Unassigned</option>
         {paychecks.map((p) => (
           <option key={p.id} value={p.id}>
-            {p.pay_date} (${Number(p.expected_amount).toFixed(2)})
+            {p.pay_date} ({formatCurrency(p.expected_amount)})
           </option>
         ))}
       </select>
@@ -331,7 +341,7 @@ function PaidHistoryRow({ entry }) {
         <p className="text-xs font-medium line-through">{entry.bill_name}</p>
         <p className="text-[10px] text-slate-500">Paid {entry.paid_date.slice(0, 10)}</p>
       </div>
-      <span className="text-xs">${Number(entry.amount_paid).toFixed(2)}</span>
+      <span className="text-xs">{formatCurrency(entry.amount_paid)}</span>
     </div>
   );
 }

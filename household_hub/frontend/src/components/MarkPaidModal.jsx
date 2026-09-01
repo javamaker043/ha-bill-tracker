@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Modal from './Modal.jsx';
+import { formatCurrency } from '../lib/format.js';
 
 const OTHER_SOURCE = '__other__';
 
@@ -50,7 +51,7 @@ export default function MarkPaidModal({ bill, members, paychecks, onClose, onCon
           />
         </label>
         <p className="text-xs text-slate-500">
-          Bill amount is ${Number(bill.amount).toFixed(2)}. Adjust if you paid a different amount.
+          Bill amount is {formatCurrency(bill.amount)}. Adjust if you paid a different amount.
         </p>
         {balanceRequired && (
           <label className="block">
@@ -84,7 +85,7 @@ export default function MarkPaidModal({ bill, members, paychecks, onClose, onCon
               </option>
               {(paychecks || []).map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.pay_date} (${Number(p.expected_amount).toFixed(2)})
+                  {p.pay_date} ({formatCurrency(p.expected_amount)})
                 </option>
               ))}
               <option value={OTHER_SOURCE}>Paid from another source (not a tracked paycheck)</option>

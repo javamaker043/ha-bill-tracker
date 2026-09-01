@@ -6,6 +6,7 @@ import {
 } from 'date-fns';
 import { api } from '../lib/api.js';
 import { Card } from '../components/Card.jsx';
+import { formatCurrency } from '../lib/format.js';
 
 export default function BillCalendar() {
   const [cursor, setCursor] = useState(new Date());
@@ -78,7 +79,7 @@ export default function BillCalendar() {
                           ? 'bg-emerald-500/20 text-emerald-300'
                           : 'bg-accent/20 text-accent-soft'
                       }`}
-                      title={`${b.name} — $${b.amount}`}
+                      title={`${b.name} — ${formatCurrency(b.amount)}`}
                     >
                       {b.name}
                     </div>

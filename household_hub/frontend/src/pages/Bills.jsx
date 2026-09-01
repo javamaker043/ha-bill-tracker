@@ -7,6 +7,7 @@ import MemberPill from '../components/MemberPill.jsx';
 import BillFormModal from '../components/BillFormModal.jsx';
 import MarkPaidModal from '../components/MarkPaidModal.jsx';
 import PaymentHistoryModal from '../components/PaymentHistoryModal.jsx';
+import { formatCurrency } from '../lib/format.js';
 
 export default function Bills() {
   const [bills, setBills] = useState([]);
@@ -77,9 +78,9 @@ export default function Bills() {
                 >
                   {b.name}
                 </td>
-                <td className="px-4 py-3">${Number(b.amount).toFixed(2)}</td>
+                <td className="px-4 py-3">{formatCurrency(b.amount)}</td>
                 <td className="px-4 py-3 text-slate-400">
-                  {b.category_is_debt ? (b.current_balance != null ? `$${Number(b.current_balance).toFixed(2)}` : '—') : ''}
+                  {b.category_is_debt ? (b.current_balance != null ? formatCurrency(b.current_balance) : '—') : ''}
                 </td>
                 <td className="px-4 py-3">{b.due_date}</td>
                 <td className="px-4 py-3 capitalize text-slate-400">{b.recurrence}</td>
