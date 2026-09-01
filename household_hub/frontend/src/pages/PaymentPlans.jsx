@@ -46,8 +46,14 @@ export default function PaymentPlans() {
     refresh();
   };
 
-  const confirmPaid = async (amount, paidBy, statementBalance) => {
-    await api.bills.pay(payingBill.id, { amount_paid: amount, paid_by: paidBy, statement_balance: statementBalance });
+  const confirmPaid = async (amount, paidBy, statementBalance, paycheckId, source) => {
+    await api.bills.pay(payingBill.id, {
+      amount_paid: amount,
+      paid_by: paidBy,
+      statement_balance: statementBalance,
+      paycheck_id: paycheckId,
+      source,
+    });
     setPayingBill(null);
     refresh();
   };
@@ -114,8 +120,7 @@ export default function PaymentPlans() {
           <BoardColumn
             key={p.id}
             title={p.pay_date}
-            subtitle={`$${p.remaining.toFixed(2)} remaining of $${Number(p.expected_amount).toFixed(2)}`}
-            tone={p.remaining < 0 ? 'danger' : 'default'}
+            subtitle={<PaycheckTotals paycheck={p} />}
             onDrop={(e) => onDrop(e, p.id)}
             onDragOver={allowDrop}
             onDelete={() => removePaycheck(p.id)}
@@ -202,7 +207,13 @@ export default function PaymentPlans() {
       )}
 
       {payingBill && (
-        <MarkPaidModal bill={payingBill} members={members} onClose={() => setPayingBill(null)} onConfirm={confirmPaid} />
+        <MarkPaidModal
+          bill={payingBill}
+          members={members}
+          paychecks={paychecks}
+          onClose={() => setPayingBill(null)}
+          onConfirm={confirmPaid}
+        />
       )}
 
       {historyBill && (
@@ -212,7 +223,7 @@ export default function PaymentPlans() {
   );
 }
 
-function BoardColumn({ title, subtitle, tone = 'default', onDrop, onDragOver, onDelete, children }) {
+function BoardColumn({ title, subtitle, onDrop, onDragOver, onDelete, children }) {
   return (
     <div
       onDrop={onDrop}
@@ -222,7 +233,7 @@ function BoardColumn({ title, subtitle, tone = 'default', onDrop, onDragOver, on
       <div className="flex items-start justify-between gap-2 px-1">
         <div>
           <p className="text-sm font-semibold">{title}</p>
-          <p className={`text-xs ${tone === 'danger' ? 'text-rose-400' : 'text-slate-400'}`}>{subtitle}</p>
+          <div className="text-xs text-slate-400">{subtitle}</div>
         </div>
         {onDelete && (
           <button onClick={onDelete} className="text-slate-500 hover:text-rose-400">
@@ -231,6 +242,23 @@ function BoardColumn({ title, subtitle, tone = 'default', onDrop, onDragOver, on
         )}
       </div>
       <div className="flex flex-col gap-2">{children}</div>
+    </div>
+  );
+}
+
+// Money paid out of a paycheck stays spent -- Remaining subtracts both what's
+// still planned (live, unpaid bills) and what's already been paid, so it
+// doesn't visibly go back up every time something here gets marked paid.
+function PaycheckTotals({ paycheck: p }) {
+  return (
+    <div className="space-y-0.5">
+      <p>Available ${Number(p.expected_amount).toFixed(2)}</p>
+      <p>
+        Planned ${p.assigned_total.toFixed(2)} · Spent ${p.paid_total.toFixed(2)}
+      </p>
+      <p className={`font-medium ${p.remaining < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+        Remaining ${p.remaining.toFixed(2)}
+      </p>
     </div>
   );
 }

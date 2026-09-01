@@ -9,6 +9,7 @@ function withBills(paycheck) {
     .prepare('SELECT * FROM bills WHERE paycheck_id = ? ORDER BY due_date ASC')
     .all(paycheck.id)
     .map(withComputedStatus);
+  // Live, not-yet-paid bills still sitting on this paycheck -- what's planned.
   const assigned_total = bills.reduce((sum, b) => sum + Number(b.amount || 0), 0);
   // Bills paid from this paycheck, kept even after a recurring bill rolls
   // forward and its live paycheck_id clears -- shown as a read-only, paid
@@ -20,12 +21,18 @@ function withBills(paycheck) {
        WHERE bp.paycheck_id = ? ORDER BY bp.paid_date DESC`
     )
     .all(paycheck.id);
+  // Money paid out of this paycheck doesn't come back once spent, so it has
+  // to count against what's left just as much as still-unpaid planned bills
+  // do -- otherwise remaining would visibly go *up* every time a bill here
+  // gets marked paid, which is backwards.
+  const paid_total = paidHistory.reduce((sum, h) => sum + Number(h.amount_paid || 0), 0);
   return {
     ...paycheck,
     bills,
     paidHistory,
     assigned_total,
-    remaining: Number(paycheck.expected_amount) - assigned_total,
+    paid_total,
+    remaining: Number(paycheck.expected_amount) - assigned_total - paid_total,
   };
 }
 

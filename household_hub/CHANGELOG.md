@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.2.10
+
+- Marking a bill paid that isn't currently assigned to a paycheck now
+  requires saying where the money came from: pick an existing paycheck
+  (retroactively, if you forgot to assign it beforehand) or note that
+  it was paid from somewhere else entirely (cash, savings, etc.). Shown
+  in that bill's payment history as a "Paid from" column either way.
+- Fixed paycheck totals to stop giving budget back for money that's
+  already been spent: **Remaining** now subtracts both what's still
+  planned (unpaid bills still assigned) and what's already been paid
+  from that paycheck, instead of only the former -- previously,
+  marking a bill paid made Remaining go back *up*, as if the payment
+  never happened. Each paycheck's column now shows Available, Planned,
+  Spent, and Remaining.
+
 ## 0.2.9
 
 - Added an **Add bill** button to Payment Plans, next to Add paycheck,

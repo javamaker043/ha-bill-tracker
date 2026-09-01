@@ -38,7 +38,13 @@ router.get('/calendar', (req, res) => {
 router.get('/:id', (req, res) => {
   const bill = db.prepare('SELECT * FROM bills WHERE id = ?').get(req.params.id);
   if (!bill) return res.status(404).json({ error: 'not found' });
-  const payments = db.prepare('SELECT * FROM bill_payments WHERE bill_id = ? ORDER BY paid_date DESC').all(bill.id);
+  const payments = db
+    .prepare(
+      `SELECT bp.*, pc.pay_date AS paycheck_pay_date
+       FROM bill_payments bp LEFT JOIN paychecks pc ON pc.id = bp.paycheck_id
+       WHERE bp.bill_id = ? ORDER BY bp.paid_date DESC`
+    )
+    .all(bill.id);
   res.json({ ...withComputedStatus(bill), payments });
 });
 
@@ -100,20 +106,28 @@ router.patch('/:id/paycheck', (req, res) => {
 router.post('/:id/pay', (req, res) => {
   const bill = db.prepare('SELECT * FROM bills WHERE id = ?').get(req.params.id);
   if (!bill) return res.status(404).json({ error: 'not found' });
-  const { amount_paid, paid_by, statement_balance } = req.body;
+  const { amount_paid, paid_by, statement_balance, paycheck_id, source } = req.body;
 
-  // Captured now, separately from the bill's own paycheck_id, because a
-  // recurring bill clears that live assignment below when it rolls forward
-  // -- this is what lets a paycheck's board column keep showing what was
-  // paid from it after the bill itself has moved on to its next occurrence.
+  // If the bill already has a live payment-plan assignment, that's the
+  // answer. Otherwise it wasn't assigned to a paycheck, so the frontend
+  // requires the payer to say which paycheck covered it (paycheck_id) or
+  // that it came from somewhere else entirely (source) -- captured here,
+  // separately from the bill's own paycheck_id, because a recurring bill
+  // clears that live assignment below when it rolls forward. This is what
+  // lets a paycheck's board column keep showing what was paid from it
+  // after the bill itself has moved on to its next occurrence.
+  const paidFromPaycheck = bill.paycheck_id || (paycheck_id ? Number(paycheck_id) : null);
+  const paidFromSource = bill.paycheck_id ? null : (source || null);
+
   db.prepare(
-    'INSERT INTO bill_payments (bill_id, amount_paid, paid_by, statement_balance, paycheck_id) VALUES (?, ?, ?, ?, ?)'
+    'INSERT INTO bill_payments (bill_id, amount_paid, paid_by, statement_balance, paycheck_id, source) VALUES (?, ?, ?, ?, ?, ?)'
   ).run(
     bill.id,
     amount_paid ?? bill.amount,
     paid_by || null,
     statement_balance ?? null,
-    bill.paycheck_id ?? null
+    paidFromPaycheck,
+    paidFromSource
   );
 
   // Only overwrite the bill's stored balance when this payment actually
@@ -121,9 +135,12 @@ router.post('/:id/pay', (req, res) => {
   const currentBalance = statement_balance ?? bill.current_balance;
 
   if (bill.recurrence === 'once') {
+    // A one-time bill stays wherever it ends up: if the payer just picked
+    // an existing paycheck for a previously-unassigned bill, reflect that
+    // in the live assignment too so it shows there, not just in history.
     db.prepare(
-      "UPDATE bills SET status='paid', current_balance=?, updated_at=datetime('now') WHERE id=?"
-    ).run(currentBalance, bill.id);
+      "UPDATE bills SET status='paid', paycheck_id=?, current_balance=?, updated_at=datetime('now') WHERE id=?"
+    ).run(paidFromPaycheck, currentBalance, bill.id);
   } else {
     // Rolling to the next occurrence starts a new, unplanned bill -- clear
     // any payment-plan assignment so it returns to the unassigned pool

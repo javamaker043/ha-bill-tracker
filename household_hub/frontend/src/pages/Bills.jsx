@@ -12,6 +12,7 @@ import { isDebtCategory } from '../lib/billCategory.js';
 export default function Bills() {
   const [bills, setBills] = useState([]);
   const [members, setMembers] = useState([]);
+  const [paychecks, setPaychecks] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [payingBill, setPayingBill] = useState(null);
@@ -20,14 +21,21 @@ export default function Bills() {
   const refresh = () => {
     api.bills.list().then(setBills);
     api.members.list().then(setMembers);
+    api.paychecks.list().then(setPaychecks);
   };
 
   useEffect(refresh, []);
 
   const memberById = useMemo(() => Object.fromEntries(members.map((m) => [m.id, m])), [members]);
 
-  const confirmPaid = async (amount, paidBy, statementBalance) => {
-    await api.bills.pay(payingBill.id, { amount_paid: amount, paid_by: paidBy, statement_balance: statementBalance });
+  const confirmPaid = async (amount, paidBy, statementBalance, paycheckId, source) => {
+    await api.bills.pay(payingBill.id, {
+      amount_paid: amount,
+      paid_by: paidBy,
+      statement_balance: statementBalance,
+      paycheck_id: paycheckId,
+      source,
+    });
     setPayingBill(null);
     refresh();
   };
@@ -120,7 +128,13 @@ export default function Bills() {
       )}
 
       {payingBill && (
-        <MarkPaidModal bill={payingBill} members={members} onClose={() => setPayingBill(null)} onConfirm={confirmPaid} />
+        <MarkPaidModal
+          bill={payingBill}
+          members={members}
+          paychecks={paychecks}
+          onClose={() => setPayingBill(null)}
+          onConfirm={confirmPaid}
+        />
       )}
 
       {historyBill && (

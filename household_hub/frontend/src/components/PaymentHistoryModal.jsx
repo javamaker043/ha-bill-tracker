@@ -11,6 +11,12 @@ function formatPaidDate(paidDate) {
   return isNaN(d) ? paidDate : d.toLocaleString();
 }
 
+function paidFromLabel(p) {
+  if (p.paycheck_pay_date) return `Paycheck ${p.paycheck_pay_date}`;
+  if (p.source) return p.source;
+  return '—';
+}
+
 export default function PaymentHistoryModal({ bill, members, onClose }) {
   const [payments, setPayments] = useState(null);
   const [error, setError] = useState(null);
@@ -40,6 +46,7 @@ export default function PaymentHistoryModal({ bill, members, onClose }) {
                 <th className="pb-2 pr-3">Date</th>
                 <th className="pb-2 pr-3">Amount</th>
                 {showBalance && <th className="pb-2 pr-3">Balance</th>}
+                <th className="pb-2 pr-3">Paid from</th>
                 <th className="pb-2">Paid by</th>
               </tr>
             </thead>
@@ -53,6 +60,7 @@ export default function PaymentHistoryModal({ bill, members, onClose }) {
                       {p.statement_balance != null ? `$${Number(p.statement_balance).toFixed(2)}` : '—'}
                     </td>
                   )}
+                  <td className="py-2 pr-3 text-slate-300">{paidFromLabel(p)}</td>
                   <td className="py-2">
                     <MemberPill member={memberById[p.paid_by]} />
                   </td>
