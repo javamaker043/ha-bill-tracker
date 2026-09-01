@@ -3,13 +3,14 @@
 ## 0.2.5
 
 - Added a **Bulk import bills** section to Settings: paste a JSON array
-  of bills (or `{ "bills": [...] }`) to create many at once instead of
-  one at a time through the Add bill form -- handy for entering a
-  backlog from a statement, spreadsheet, or notes app. Shows a preview
-  with per-row validation before importing, matches `assigned_to_name`
-  against existing household members, and auto-creates any category
-  names that don't already exist. Runs entirely client-side against
-  your own instance's existing API -- nothing is sent anywhere else.
+  of bills (or `{ "bills": [...] }`) to load a starting list, or build
+  one from scratch with "Add row" -- handy for entering a backlog from a
+  statement, spreadsheet, or notes app. Every field (name, amount, due
+  date, recurrence, category, assigned member, notes) is directly
+  editable in the table before anything is created, rows can be removed,
+  and category names that don't exist yet are created automatically.
+  Runs entirely client-side against your own instance's existing API --
+  nothing is sent anywhere else.
 
 ## 0.2.4
 
