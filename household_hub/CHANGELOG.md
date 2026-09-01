@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.9
+
+- Added an **Add bill** button to Payment Plans, next to Add paycheck,
+  so a new bill can be created without switching to the Bills page.
+- Marking a bill paid no longer makes it disappear from its paycheck's
+  board column. A one-time bill already stayed in place (now dimmed to
+  show it's settled); a recurring bill rolls forward to its next due
+  date and returns to Unassigned for planning as before, but the just-
+  paid record now stays behind in that paycheck's column as a dimmed,
+  read-only history entry instead of vanishing.
+
 ## 0.2.8
 
 - Bulk import bills now tolerates the most common ways pasted JSON gets

@@ -10,9 +10,20 @@ function withBills(paycheck) {
     .all(paycheck.id)
     .map(withComputedStatus);
   const assigned_total = bills.reduce((sum, b) => sum + Number(b.amount || 0), 0);
+  // Bills paid from this paycheck, kept even after a recurring bill rolls
+  // forward and its live paycheck_id clears -- shown as a read-only, paid
+  // record in the board column instead of just vanishing back to Unassigned.
+  const paidHistory = db
+    .prepare(
+      `SELECT bp.id, bp.bill_id, bp.amount_paid, bp.paid_date, b.name AS bill_name
+       FROM bill_payments bp JOIN bills b ON b.id = bp.bill_id
+       WHERE bp.paycheck_id = ? ORDER BY bp.paid_date DESC`
+    )
+    .all(paycheck.id);
   return {
     ...paycheck,
     bills,
+    paidHistory,
     assigned_total,
     remaining: Number(paycheck.expected_amount) - assigned_total,
   };

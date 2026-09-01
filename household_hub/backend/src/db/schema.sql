@@ -67,7 +67,10 @@ CREATE TABLE IF NOT EXISTS bill_payments (
   amount_paid REAL NOT NULL,
   paid_date TEXT NOT NULL DEFAULT (datetime('now')),
   paid_by INTEGER REFERENCES members(id) ON DELETE SET NULL,
-  statement_balance REAL                          -- balance as of this payment, for credit-card/loan bills
+  statement_balance REAL,                         -- balance as of this payment, for credit-card/loan bills
+  paycheck_id INTEGER REFERENCES paychecks(id) ON DELETE SET NULL -- which paycheck this was paid from, if any,
+                                                   -- captured at payment time so it survives the bill rolling
+                                                   -- forward and losing its live payment-plan assignment
 );
 
 CREATE TABLE IF NOT EXISTS projects (
