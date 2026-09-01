@@ -2,24 +2,25 @@ import { Router } from 'express';
 import db from '../db/index.js';
 import { advanceDueDate } from '../services/recurrence.js';
 import { withComputedStatus } from '../services/billStatus.js';
+import { BILLS_WITH_CATEGORY_SELECT } from '../db/billQueries.js';
 
 const router = Router();
 
 router.get('/', (req, res) => {
   const { status, assigned_to } = req.query;
-  let query = 'SELECT * FROM bills';
+  let query = BILLS_WITH_CATEGORY_SELECT;
   const clauses = [];
   const params = [];
   if (status) {
-    clauses.push('status = ?');
+    clauses.push('bills.status = ?');
     params.push(status);
   }
   if (assigned_to) {
-    clauses.push('assigned_to = ?');
+    clauses.push('bills.assigned_to = ?');
     params.push(assigned_to);
   }
   if (clauses.length) query += ' WHERE ' + clauses.join(' AND ');
-  query += ' ORDER BY due_date ASC';
+  query += ' ORDER BY bills.due_date ASC';
   const bills = db.prepare(query).all(...params).map(withComputedStatus);
   res.json(bills);
 });
@@ -29,14 +30,14 @@ router.get('/calendar', (req, res) => {
   const { from, to } = req.query;
   if (!from || !to) return res.status(400).json({ error: 'from and to query params required (YYYY-MM-DD)' });
   const bills = db
-    .prepare('SELECT * FROM bills WHERE due_date BETWEEN ? AND ? ORDER BY due_date ASC')
+    .prepare(`${BILLS_WITH_CATEGORY_SELECT} WHERE bills.due_date BETWEEN ? AND ? ORDER BY bills.due_date ASC`)
     .all(from, to)
     .map(withComputedStatus);
   res.json(bills);
 });
 
 router.get('/:id', (req, res) => {
-  const bill = db.prepare('SELECT * FROM bills WHERE id = ?').get(req.params.id);
+  const bill = db.prepare(`${BILLS_WITH_CATEGORY_SELECT} WHERE bills.id = ?`).get(req.params.id);
   if (!bill) return res.status(404).json({ error: 'not found' });
   const payments = db
     .prepare(
@@ -51,13 +52,14 @@ router.get('/:id', (req, res) => {
 router.post('/', (req, res) => {
   const {
     name, amount, payee, category, recurrence, due_date,
-    autopay, assigned_to, reminder_days_before, current_balance, notes,
+    autopay, assigned_to, reminder_days_before, current_balance,
+    interest_rate, credit_limit, notes,
   } = req.body;
   if (!name || !due_date) return res.status(400).json({ error: 'name and due_date are required' });
   const info = db
     .prepare(
-      `INSERT INTO bills (name, amount, payee, category, recurrence, due_date, autopay, assigned_to, reminder_days_before, current_balance, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO bills (name, amount, payee, category, recurrence, due_date, autopay, assigned_to, reminder_days_before, current_balance, interest_rate, credit_limit, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       name,
@@ -70,6 +72,8 @@ router.post('/', (req, res) => {
       assigned_to || null,
       reminder_days_before ?? 3,
       current_balance ?? null,
+      interest_rate ?? null,
+      credit_limit ?? null,
       notes || null
     );
   res.status(201).json(db.prepare('SELECT * FROM bills WHERE id = ?').get(info.lastInsertRowid));
@@ -80,12 +84,13 @@ router.put('/:id', (req, res) => {
   if (!existing) return res.status(404).json({ error: 'not found' });
   const merged = { ...existing, ...req.body };
   db.prepare(
-    `UPDATE bills SET name=?, amount=?, payee=?, category=?, recurrence=?, due_date=?, autopay=?, assigned_to=?, reminder_days_before=?, status=?, current_balance=?, notes=?, updated_at=datetime('now')
+    `UPDATE bills SET name=?, amount=?, payee=?, category=?, recurrence=?, due_date=?, autopay=?, assigned_to=?, reminder_days_before=?, status=?, current_balance=?, interest_rate=?, credit_limit=?, notes=?, updated_at=datetime('now')
      WHERE id=?`
   ).run(
     merged.name, merged.amount, merged.payee, merged.category, merged.recurrence,
     merged.due_date, merged.autopay ? 1 : 0, merged.assigned_to, merged.reminder_days_before,
-    merged.status, merged.current_balance ?? null, merged.notes, req.params.id
+    merged.status, merged.current_balance ?? null, merged.interest_rate ?? null, merged.credit_limit ?? null,
+    merged.notes, req.params.id
   );
   res.json(db.prepare('SELECT * FROM bills WHERE id = ?').get(req.params.id));
 });

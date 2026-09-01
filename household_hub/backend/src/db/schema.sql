@@ -25,12 +25,16 @@ CREATE TABLE IF NOT EXISTS members (
 CREATE TABLE IF NOT EXISTS categories (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL UNIQUE,
+  is_debt INTEGER NOT NULL DEFAULT 0, -- toggled from Settings; drives the current-balance/APR/credit-limit
+                                       -- fields on bills and what shows up on the Debt Management tab
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 INSERT OR IGNORE INTO categories (name) VALUES
   ('Utilities'), ('Housing'), ('Subscriptions'), ('Auto'),
   ('Credit Cards'), ('Short-Term Loans'), ('Food'), ('Other');
+
+UPDATE categories SET is_debt = 1 WHERE name IN ('Credit Cards', 'Short-Term Loans');
 
 -- A planned paycheck: a date + expected amount you can assign bills against
 -- from the Payment Plans tab, to budget which bills come out of which check.
@@ -56,6 +60,8 @@ CREATE TABLE IF NOT EXISTS bills (
   reminder_days_before INTEGER NOT NULL DEFAULT 3,
   status TEXT NOT NULL DEFAULT 'unpaid',          -- unpaid | paid | overdue
   current_balance REAL,                           -- latest known statement balance, for credit-card/loan bills
+  interest_rate REAL,                             -- APR percent (e.g. 24.99), for Debt Management payoff scenarios
+  credit_limit REAL,                              -- for Debt Management utilization tracking
   notes TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))

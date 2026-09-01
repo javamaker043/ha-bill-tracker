@@ -61,6 +61,11 @@ export default function Settings() {
     refresh();
   };
 
+  const toggleCategoryDebt = async (category) => {
+    await api.categories.setDebt(category.id, !category.is_debt);
+    refresh();
+  };
+
   const sendTest = async () => {
     setTestStatus('Sending…');
     try {
@@ -152,18 +157,25 @@ export default function Settings() {
       </Card>
 
       <Card>
-        <h3 className="mb-4 text-sm font-semibold text-slate-200">Bill categories</h3>
-        <div className="mb-4 flex flex-wrap gap-2">
+        <h3 className="mb-1 text-sm font-semibold text-slate-200">Bill categories</h3>
+        <p className="mb-4 text-xs text-slate-500">
+          Mark a category as loan/credit to require a current balance when marking its bills paid, and
+          to have it show up on the Debt Management tab -- not just categories named "Credit" or "Loan".
+        </p>
+        <div className="mb-4 space-y-2">
           {categories.map((c) => (
-            <span
-              key={c.id}
-              className="flex items-center gap-1 rounded-full bg-surface-muted px-3 py-1 text-xs text-slate-300"
-            >
-              {c.name}
-              <button onClick={() => removeCategory(c.id)} className="text-slate-500 hover:text-rose-400">
-                <Trash2 size={12} />
-              </button>
-            </span>
+            <div key={c.id} className="flex items-center justify-between rounded-lg bg-surface-muted px-3 py-2">
+              <span className="text-sm font-medium">{c.name}</span>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-1.5 text-xs text-slate-400">
+                  <input type="checkbox" checked={Boolean(c.is_debt)} onChange={() => toggleCategoryDebt(c)} />
+                  Loan / credit category
+                </label>
+                <button onClick={() => removeCategory(c.id)} className="text-slate-500 hover:text-rose-400">
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </div>
           ))}
           {categories.length === 0 && <p className="text-sm text-slate-500">No categories yet.</p>}
         </div>

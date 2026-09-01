@@ -29,11 +29,17 @@ db.exec(schema);
 // CREATE TABLE IF NOT EXISTS only helps brand-new databases -- a column
 // added to an existing table needs an explicit migration here too, since an
 // install from before that column existed already has the table created.
+// Returns true only when the column didn't already exist and was just
+// added -- lets a one-time backfill run exactly once, right when a column
+// is introduced, instead of on every boot (which would keep stomping any
+// later manual change to that data).
 function ensureColumn(table, column, definition) {
   const columns = db.prepare(`PRAGMA table_info(${table})`).all();
   if (!columns.some((c) => c.name === column)) {
     db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    return true;
   }
+  return false;
 }
 
 ensureColumn('members', 'ha_user_id', 'TEXT');
@@ -44,6 +50,18 @@ ensureColumn('bills', 'current_balance', 'REAL');
 ensureColumn('bill_payments', 'statement_balance', 'REAL');
 ensureColumn('bill_payments', 'paycheck_id', 'INTEGER REFERENCES paychecks(id) ON DELETE SET NULL');
 ensureColumn('bill_payments', 'source', 'TEXT');
+ensureColumn('bills', 'interest_rate', 'REAL');
+ensureColumn('bills', 'credit_limit', 'REAL');
+
+if (ensureColumn('categories', 'is_debt', 'INTEGER NOT NULL DEFAULT 0')) {
+  // Preserve the old name-based heuristic's behavior for existing installs
+  // so upgrading doesn't silently change what "Mark paid" requires for
+  // bills already in categories that look debt-related -- one-time only,
+  // so a later manual toggle in Settings isn't overwritten on next boot.
+  db.exec(
+    `UPDATE categories SET is_debt = 1 WHERE is_debt = 0 AND (name LIKE '%credit%' OR name LIKE '%loan%')`
+  );
+}
 
 // Row counts after schema/migration, still tied to the pre-open existence
 // check above: e.g. "existed=true size=45056 bytes" followed by

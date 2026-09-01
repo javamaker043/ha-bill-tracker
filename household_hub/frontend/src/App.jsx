@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, NavLink, useLocation, Link } from 'react-router-dom';
-import { LayoutDashboard, Receipt, CalendarDays, FolderKanban, Settings, Wallet, Menu, X, AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, Receipt, CalendarDays, FolderKanban, Settings, Wallet, TrendingDown, Menu, X, AlertTriangle } from 'lucide-react';
 
 import Dashboard from './pages/Dashboard.jsx';
 import Bills from './pages/Bills.jsx';
 import BillCalendar from './pages/BillCalendar.jsx';
 import PaymentPlans from './pages/PaymentPlans.jsx';
+import DebtManagement from './pages/DebtManagement.jsx';
 import Projects from './pages/Projects.jsx';
 import ProjectDetail from './pages/ProjectDetail.jsx';
 import SettingsPage from './pages/Settings.jsx';
@@ -16,6 +17,7 @@ const navItems = [
   { to: '/bills', label: 'Bills', icon: Receipt },
   { to: '/calendar', label: 'Bill Calendar', icon: CalendarDays },
   { to: '/payment-plans', label: 'Payment Plans', icon: Wallet },
+  { to: '/debt-management', label: 'Debt Management', icon: TrendingDown },
   { to: '/projects', label: 'Projects', icon: FolderKanban },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
@@ -122,6 +124,7 @@ export default function App() {
               <Route path="/bills" element={<Bills />} />
               <Route path="/calendar" element={<BillCalendar />} />
               <Route path="/payment-plans" element={<PaymentPlans />} />
+              <Route path="/debt-management" element={<DebtManagement />} />
               <Route path="/projects" element={<Projects />} />
               <Route path="/projects/:id" element={<ProjectDetail />} />
               <Route path="/settings" element={<SettingsPage />} />

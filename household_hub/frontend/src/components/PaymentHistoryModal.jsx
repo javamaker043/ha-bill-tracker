@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import Modal from './Modal.jsx';
 import MemberPill from './MemberPill.jsx';
 import { api } from '../lib/api.js';
-import { isDebtCategory } from '../lib/billCategory.js';
 import { formatCurrency } from '../lib/format.js';
 
 // SQLite's datetime('now') returns UTC with no timezone marker, so append
@@ -30,7 +29,7 @@ export default function PaymentHistoryModal({ bill, members, onClose }) {
   }, [bill.id]);
 
   const memberById = Object.fromEntries((members || []).map((m) => [m.id, m]));
-  const showBalance = isDebtCategory(bill.category) || (payments || []).some((p) => p.statement_balance != null);
+  const showBalance = Boolean(bill.category_is_debt) || (payments || []).some((p) => p.statement_balance != null);
 
   return (
     <Modal title={`Payment history — ${bill.name}`} onClose={onClose}>

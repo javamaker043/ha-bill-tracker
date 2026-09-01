@@ -7,7 +7,6 @@ import MemberPill from '../components/MemberPill.jsx';
 import BillFormModal from '../components/BillFormModal.jsx';
 import MarkPaidModal from '../components/MarkPaidModal.jsx';
 import PaymentHistoryModal from '../components/PaymentHistoryModal.jsx';
-import { isDebtCategory } from '../lib/billCategory.js';
 import { formatCurrency } from '../lib/format.js';
 
 export default function Bills() {
@@ -81,7 +80,7 @@ export default function Bills() {
                 </td>
                 <td className="px-4 py-3">{formatCurrency(b.amount)}</td>
                 <td className="px-4 py-3 text-slate-400">
-                  {isDebtCategory(b.category) ? (b.current_balance != null ? formatCurrency(b.current_balance) : '—') : ''}
+                  {b.category_is_debt ? (b.current_balance != null ? formatCurrency(b.current_balance) : '—') : ''}
                 </td>
                 <td className="px-4 py-3">{b.due_date}</td>
                 <td className="px-4 py-3 capitalize text-slate-400">{b.recurrence}</td>

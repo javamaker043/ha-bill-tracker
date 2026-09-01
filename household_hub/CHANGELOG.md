@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.2.12
+
+- Added a **Debt Management** tab. Any bill in a Credit Cards or
+  Short-Term Loans category (or any category with "credit" or "loan"
+  in its name) with a balance shows up here automatically:
+  - **Credit utilization** tracking, per account and overall, against
+    each account's credit limit -- color-coded at the standard 30%/75%
+    risk bands.
+  - A **payoff scenario** calculator: pick an account and an extra
+    monthly payment amount to see, side by side against paying only
+    the minimum, how many months sooner it's paid off, how much
+    interest that saves, and what your total tracked monthly debt
+    payments drop to once that account is paid off.
+  - New `interest_rate` (APR %) and `credit_limit` fields on bills,
+    editable from the bill form for debt-category bills alongside the
+    existing current-balance field, feeding both calculations above.
+- Settings' Bill categories can now be explicitly marked as loan/credit
+  with a checkbox, instead of only ever being guessed from the category
+  name -- so a category like "Medical Debt" or "Personal Loan from Mom"
+  works the same as "Credit Cards" for the current-balance requirement
+  on Mark paid and for showing up on Debt Management. Existing installs
+  keep working as before: any category that already matched the old
+  name-based guess is marked automatically, once, on upgrade.
+
 ## 0.2.11
 
 - Every dollar amount shown in the app (bills, balances, paycheck

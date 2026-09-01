@@ -35,6 +35,8 @@ export const api = {
   categories: {
     list: () => request('/categories'),
     create: (name) => request('/categories', { method: 'POST', body: JSON.stringify({ name }) }),
+    setDebt: (id, is_debt) =>
+      request(`/categories/${id}/debt`, { method: 'PATCH', body: JSON.stringify({ is_debt }) }),
     remove: (id) => request(`/categories/${id}`, { method: 'DELETE' }),
   },
   bills: {

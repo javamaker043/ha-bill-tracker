@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import db from '../db/index.js';
 import { withComputedStatus } from '../services/billStatus.js';
+import { BILLS_WITH_CATEGORY_SELECT } from '../db/billQueries.js';
 
 const router = Router();
 
 function withBills(paycheck) {
   const bills = db
-    .prepare('SELECT * FROM bills WHERE paycheck_id = ? ORDER BY due_date ASC')
+    .prepare(`${BILLS_WITH_CATEGORY_SELECT} WHERE bills.paycheck_id = ? ORDER BY bills.due_date ASC`)
     .all(paycheck.id)
     .map(withComputedStatus);
   // Live, not-yet-paid bills still sitting on this paycheck -- what's planned.
@@ -45,7 +46,9 @@ router.get('/', (_req, res) => {
 // sorts overdue bills -- earlier dates -- ahead of anything not yet due).
 router.get('/unassigned-bills', (_req, res) => {
   const bills = db
-    .prepare("SELECT * FROM bills WHERE paycheck_id IS NULL AND status != 'paid' ORDER BY due_date ASC")
+    .prepare(
+      `${BILLS_WITH_CATEGORY_SELECT} WHERE bills.paycheck_id IS NULL AND bills.status != 'paid' ORDER BY bills.due_date ASC`
+    )
     .all()
     .map(withComputedStatus);
   res.json(bills);
