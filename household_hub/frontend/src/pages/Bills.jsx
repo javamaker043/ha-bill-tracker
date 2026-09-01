@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, Check } from 'lucide-react';
+import { Plus, Check, History } from 'lucide-react';
 import { api } from '../lib/api.js';
 import { Card } from '../components/Card.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
 import MemberPill from '../components/MemberPill.jsx';
 import BillFormModal from '../components/BillFormModal.jsx';
 import MarkPaidModal from '../components/MarkPaidModal.jsx';
+import PaymentHistoryModal from '../components/PaymentHistoryModal.jsx';
+import { isDebtCategory } from '../lib/billCategory.js';
 
 export default function Bills() {
   const [bills, setBills] = useState([]);
@@ -13,6 +15,7 @@ export default function Bills() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [payingBill, setPayingBill] = useState(null);
+  const [historyBill, setHistoryBill] = useState(null);
 
   const refresh = () => {
     api.bills.list().then(setBills);
@@ -23,8 +26,8 @@ export default function Bills() {
 
   const memberById = useMemo(() => Object.fromEntries(members.map((m) => [m.id, m])), [members]);
 
-  const confirmPaid = async (amount) => {
-    await api.bills.pay(payingBill.id, { amount_paid: amount });
+  const confirmPaid = async (amount, paidBy, statementBalance) => {
+    await api.bills.pay(payingBill.id, { amount_paid: amount, paid_by: paidBy, statement_balance: statementBalance });
     setPayingBill(null);
     refresh();
   };
@@ -50,6 +53,7 @@ export default function Bills() {
             <tr>
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Amount</th>
+              <th className="px-4 py-3">Balance</th>
               <th className="px-4 py-3">Due</th>
               <th className="px-4 py-3">Recurrence</th>
               <th className="px-4 py-3">Assigned</th>
@@ -67,25 +71,37 @@ export default function Bills() {
                   {b.name}
                 </td>
                 <td className="px-4 py-3">${Number(b.amount).toFixed(2)}</td>
+                <td className="px-4 py-3 text-slate-400">
+                  {isDebtCategory(b.category) ? (b.current_balance != null ? `$${Number(b.current_balance).toFixed(2)}` : '—') : ''}
+                </td>
                 <td className="px-4 py-3">{b.due_date}</td>
                 <td className="px-4 py-3 capitalize text-slate-400">{b.recurrence}</td>
                 <td className="px-4 py-3"><MemberPill member={memberById[b.assigned_to]} /></td>
                 <td className="px-4 py-3"><StatusBadge status={b.status} /></td>
                 <td className="px-4 py-3 text-right">
-                  {b.status !== 'paid' && (
+                  <div className="flex items-center justify-end gap-2">
                     <button
-                      onClick={() => setPayingBill(b)}
-                      className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-2.5 py-1 text-xs font-medium text-emerald-400 hover:bg-emerald-500/25"
+                      onClick={() => setHistoryBill(b)}
+                      title="Payment history"
+                      className="text-slate-500 hover:text-white"
                     >
-                      <Check size={14} /> Mark paid
+                      <History size={16} />
                     </button>
-                  )}
+                    {b.status !== 'paid' && (
+                      <button
+                        onClick={() => setPayingBill(b)}
+                        className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-2.5 py-1 text-xs font-medium text-emerald-400 hover:bg-emerald-500/25"
+                      >
+                        <Check size={14} /> Mark paid
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
             {bills.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
                   No bills yet — add your first one.
                 </td>
               </tr>
@@ -104,7 +120,11 @@ export default function Bills() {
       )}
 
       {payingBill && (
-        <MarkPaidModal bill={payingBill} onClose={() => setPayingBill(null)} onConfirm={confirmPaid} />
+        <MarkPaidModal bill={payingBill} members={members} onClose={() => setPayingBill(null)} onConfirm={confirmPaid} />
+      )}
+
+      {historyBill && (
+        <PaymentHistoryModal bill={historyBill} members={members} onClose={() => setHistoryBill(null)} />
       )}
     </div>
   );

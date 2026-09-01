@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.2.6
+
+- Added a payment history view: a clock icon next to every bill (on both
+  the Bills table and each Payment Plans card) opens a list of every
+  time that bill has been paid, with the date, amount, and who paid it.
+  The backend has logged this to a `bill_payments` table since the
+  first release, but there was previously no way to see it anywhere in
+  the app.
+- "Mark paid" now also asks who paid, recorded alongside the amount and
+  date in that history (optional -- defaults to unspecified).
+- For **Credit Cards** and **Short-Term Loans** bills (or any category
+  with "credit" or "loan" in its name), "Mark paid" now *requires* the
+  current statement balance, recorded alongside that payment and shown
+  as its own column in payment history. The Bills table also shows each
+  debt bill's latest known balance at a glance, and it's editable
+  directly from the bill's edit form too, not just through Mark paid.
+
 ## 0.2.4
 
 - **Found and fixed the cause of all data disappearing on every add-on
