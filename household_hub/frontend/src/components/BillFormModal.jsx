@@ -118,7 +118,7 @@ export default function BillFormModal({ bill, members, onClose, onSaved }) {
             )}
           </Field>
         </div>
-        {isDebtCategory(form.category) && (
+        {isDebtCategory(form.category, categories) && (
           <>
             <Field label="Current statement balance">
               <input

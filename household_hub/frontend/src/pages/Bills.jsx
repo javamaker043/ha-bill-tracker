@@ -7,7 +7,6 @@ import MemberPill from '../components/MemberPill.jsx';
 import BillFormModal from '../components/BillFormModal.jsx';
 import MarkPaidModal from '../components/MarkPaidModal.jsx';
 import PaymentHistoryModal from '../components/PaymentHistoryModal.jsx';
-import { isDebtCategory } from '../lib/billCategory.js';
 
 export default function Bills() {
   const [bills, setBills] = useState([]);
@@ -80,7 +79,7 @@ export default function Bills() {
                 </td>
                 <td className="px-4 py-3">${Number(b.amount).toFixed(2)}</td>
                 <td className="px-4 py-3 text-slate-400">
-                  {isDebtCategory(b.category) ? (b.current_balance != null ? `$${Number(b.current_balance).toFixed(2)}` : '—') : ''}
+                  {b.category_is_debt ? (b.current_balance != null ? `$${Number(b.current_balance).toFixed(2)}` : '—') : ''}
                 </td>
                 <td className="px-4 py-3">{b.due_date}</td>
                 <td className="px-4 py-3 capitalize text-slate-400">{b.recurrence}</td>

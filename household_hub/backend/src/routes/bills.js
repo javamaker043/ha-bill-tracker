@@ -2,24 +2,25 @@ import { Router } from 'express';
 import db from '../db/index.js';
 import { advanceDueDate } from '../services/recurrence.js';
 import { withComputedStatus } from '../services/billStatus.js';
+import { BILLS_WITH_CATEGORY_SELECT } from '../db/billQueries.js';
 
 const router = Router();
 
 router.get('/', (req, res) => {
   const { status, assigned_to } = req.query;
-  let query = 'SELECT * FROM bills';
+  let query = BILLS_WITH_CATEGORY_SELECT;
   const clauses = [];
   const params = [];
   if (status) {
-    clauses.push('status = ?');
+    clauses.push('bills.status = ?');
     params.push(status);
   }
   if (assigned_to) {
-    clauses.push('assigned_to = ?');
+    clauses.push('bills.assigned_to = ?');
     params.push(assigned_to);
   }
   if (clauses.length) query += ' WHERE ' + clauses.join(' AND ');
-  query += ' ORDER BY due_date ASC';
+  query += ' ORDER BY bills.due_date ASC';
   const bills = db.prepare(query).all(...params).map(withComputedStatus);
   res.json(bills);
 });
@@ -29,14 +30,14 @@ router.get('/calendar', (req, res) => {
   const { from, to } = req.query;
   if (!from || !to) return res.status(400).json({ error: 'from and to query params required (YYYY-MM-DD)' });
   const bills = db
-    .prepare('SELECT * FROM bills WHERE due_date BETWEEN ? AND ? ORDER BY due_date ASC')
+    .prepare(`${BILLS_WITH_CATEGORY_SELECT} WHERE bills.due_date BETWEEN ? AND ? ORDER BY bills.due_date ASC`)
     .all(from, to)
     .map(withComputedStatus);
   res.json(bills);
 });
 
 router.get('/:id', (req, res) => {
-  const bill = db.prepare('SELECT * FROM bills WHERE id = ?').get(req.params.id);
+  const bill = db.prepare(`${BILLS_WITH_CATEGORY_SELECT} WHERE bills.id = ?`).get(req.params.id);
   if (!bill) return res.status(404).json({ error: 'not found' });
   const payments = db
     .prepare(

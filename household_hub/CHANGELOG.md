@@ -16,6 +16,13 @@
   - New `interest_rate` (APR %) and `credit_limit` fields on bills,
     editable from the bill form for debt-category bills alongside the
     existing current-balance field, feeding both calculations above.
+- Settings' Bill categories can now be explicitly marked as loan/credit
+  with a checkbox, instead of only ever being guessed from the category
+  name -- so a category like "Medical Debt" or "Personal Loan from Mom"
+  works the same as "Credit Cards" for the current-balance requirement
+  on Mark paid and for showing up on Debt Management. Existing installs
+  keep working as before: any category that already matched the old
+  name-based guess is marked automatically, once, on upgrade.
 
 ## 0.2.10
 

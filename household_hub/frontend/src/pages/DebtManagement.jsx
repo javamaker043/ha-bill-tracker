@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api.js';
 import { Card, StatCard } from '../components/Card.jsx';
-import { isDebtCategory } from '../lib/billCategory.js';
 import { formatCurrency } from '../lib/format.js';
 import { simulatePayoff, utilizationTone } from '../lib/debtPayoff.js';
 
@@ -21,7 +20,7 @@ export default function DebtManagement() {
   // Debt Management only makes sense for accounts that carry a running
   // balance (credit cards, loans) and actually have one right now.
   const debts = useMemo(
-    () => bills.filter((b) => isDebtCategory(b.category) && Number(b.current_balance) > 0),
+    () => bills.filter((b) => b.category_is_debt && Number(b.current_balance) > 0),
     [bills]
   );
 

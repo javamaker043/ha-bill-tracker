@@ -1,8 +1,12 @@
-// Matches "Credit Cards" and "Short-Term Loans" (the seeded defaults) as well
-// as any custom category a household adds later with "credit" or "loan" in
-// the name, e.g. "Auto Loans" or "Student Loans" -- these are the categories
-// that carry a running statement balance worth tracking over time, unlike a
-// flat recurring bill like Utilities or Subscriptions.
-export function isDebtCategory(category) {
+// Categories carry an explicit is_debt flag, toggled from Settings, which is
+// the source of truth once it's available -- the name-based guess below only
+// kicks in when the caller doesn't have (or hasn't loaded) the categories
+// list, e.g. before it's fetched, so behavior degrades gracefully rather
+// than breaking.
+export function isDebtCategory(category, categories) {
+  if (categories) {
+    const match = categories.find((c) => c.name === category);
+    if (match) return Boolean(match.is_debt);
+  }
   return /credit|loan/i.test(category || '');
 }

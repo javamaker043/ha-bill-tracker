@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import Modal from './Modal.jsx';
-import { isDebtCategory } from '../lib/billCategory.js';
 
 const OTHER_SOURCE = '__other__';
 
@@ -13,7 +12,10 @@ export default function MarkPaidModal({ bill, members, paychecks, onClose, onCon
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
-  const balanceRequired = isDebtCategory(bill.category);
+  // Resolved server-side (bills.category is a plain name, not a foreign
+  // key, so "is this a debt category" comes pre-joined from categories.is_debt
+  // rather than guessed here from the category name).
+  const balanceRequired = Boolean(bill.category_is_debt);
   const needsSource = !bill.paycheck_id;
 
   const submit = async (e) => {

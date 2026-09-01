@@ -14,6 +14,17 @@ router.post('/', (req, res) => {
   res.status(201).json(db.prepare('SELECT * FROM categories WHERE name = ?').get(name));
 });
 
+// Toggled from Settings: marks whether bills in this category carry a
+// running balance (credit card, loan) -- drives the current-balance/APR/
+// credit-limit fields on bills and what shows up on Debt Management,
+// instead of only ever guessing from the category name.
+router.patch('/:id/debt', (req, res) => {
+  const existing = db.prepare('SELECT * FROM categories WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'not found' });
+  db.prepare('UPDATE categories SET is_debt = ? WHERE id = ?').run(req.body.is_debt ? 1 : 0, req.params.id);
+  res.json(db.prepare('SELECT * FROM categories WHERE id = ?').get(req.params.id));
+});
+
 router.delete('/:id', (req, res) => {
   db.prepare('DELETE FROM categories WHERE id = ?').run(req.params.id);
   res.status(204).end();
