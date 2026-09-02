@@ -34,7 +34,13 @@ INSERT OR IGNORE INTO categories (name) VALUES
   ('Utilities'), ('Housing'), ('Subscriptions'), ('Auto'),
   ('Credit Cards'), ('Short-Term Loans'), ('Food'), ('Other');
 
-UPDATE categories SET is_debt = 1 WHERE name IN ('Credit Cards', 'Short-Term Loans');
+-- Nothing here sets is_debt for the two above -- this whole file runs in
+-- one shot on every boot, including against an *existing* database that
+-- doesn't have the is_debt column yet, before db/index.js's migration adds
+-- it. Any DML statement in this file that references is_debt by name would
+-- throw "no such column: is_debt" on exactly that upgrade path. The seed
+-- value and the one-time upgrade backfill both live in db/index.js instead,
+-- safely after the column is guaranteed to exist.
 
 -- A planned paycheck: a date + expected amount you can assign bills against
 -- from the Payment Plans tab, to budget which bills come out of which check.

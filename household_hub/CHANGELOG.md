@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.2.13
+
+- **Fixed a crash-on-boot introduced in 0.2.12**: `schema.sql` set
+  `is_debt` on the default categories with a plain `UPDATE`, but that
+  file runs in full on every boot -- including against an *existing*
+  database that doesn't have the `is_debt` column yet, before the
+  migration that adds it. Every boot hit `SqliteError: no such column:
+  is_debt` and crashed immediately, before the server ever started
+  listening, so the add-on crash-looped indefinitely on any upgrade
+  from before 0.2.12. Moved that logic into the backend startup code,
+  after the column is guaranteed to exist -- also fixed the same seed
+  step silently no-op'ing on brand-new installs (a separate bug: the
+  "was this column just added" check doesn't fire when the column is
+  part of the table's very first `CREATE TABLE`, only on an `ALTER`).
+  No data was at risk -- the existing database and all its data were
+  never touched by this, the server just never got far enough to serve
+  requests.
+
 ## 0.2.12
 
 - Added a **Debt Management** tab. Any bill in a Credit Cards or
