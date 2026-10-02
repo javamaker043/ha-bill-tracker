@@ -6,6 +6,7 @@ const OTHER_SOURCE = '__other__';
 
 export default function MarkPaidModal({ bill, members, paychecks, onClose, onConfirm }) {
   const [amount, setAmount] = useState(bill.amount);
+  const [paidDate, setPaidDate] = useState(new Date().toISOString().slice(0, 10));
   const [paidBy, setPaidBy] = useState('');
   const [statementBalance, setStatementBalance] = useState(bill.current_balance ?? '');
   const [paycheckChoice, setPaycheckChoice] = useState('');
@@ -27,7 +28,7 @@ export default function MarkPaidModal({ bill, members, paychecks, onClose, onCon
       const balance = statementBalance === '' ? null : Number(statementBalance);
       const paycheckId = needsSource && paycheckChoice && paycheckChoice !== OTHER_SOURCE ? Number(paycheckChoice) : null;
       const source = needsSource && paycheckChoice === OTHER_SOURCE ? sourceText.trim() : null;
-      await onConfirm(Number(amount) || 0, paidBy ? Number(paidBy) : null, balance, paycheckId, source);
+      await onConfirm(Number(amount) || 0, paidBy ? Number(paidBy) : null, balance, paycheckId, source, paidDate);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -53,6 +54,20 @@ export default function MarkPaidModal({ bill, members, paychecks, onClose, onCon
         <p className="text-xs text-slate-500">
           Bill amount is {formatCurrency(bill.amount)}. Adjust if you paid a different amount.
         </p>
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-slate-400">Payment date</span>
+          <input
+            required
+            type="date"
+            value={paidDate}
+            onChange={(e) => setPaidDate(e.target.value)}
+            className="w-full rounded-lg border border-white/10 bg-surface-muted px-3 py-2 text-sm outline-none focus:border-accent"
+          />
+          <span className="mt-1 block text-xs text-slate-500">
+            Defaults to today -- back-date this if you're logging a payment you already made but forgot
+            to record.
+          </span>
+        </label>
         {balanceRequired && (
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-slate-400">Current statement balance</span>

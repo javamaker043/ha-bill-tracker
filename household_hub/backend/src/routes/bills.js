@@ -111,7 +111,7 @@ router.patch('/:id/paycheck', (req, res) => {
 router.post('/:id/pay', (req, res) => {
   const bill = db.prepare('SELECT * FROM bills WHERE id = ?').get(req.params.id);
   if (!bill) return res.status(404).json({ error: 'not found' });
-  const { amount_paid, paid_by, statement_balance, paycheck_id, source } = req.body;
+  const { amount_paid, paid_by, statement_balance, paycheck_id, source, paid_date } = req.body;
 
   // If the bill already has a live payment-plan assignment, that's the
   // answer. Otherwise it wasn't assigned to a paycheck, so the frontend
@@ -124,15 +124,24 @@ router.post('/:id/pay', (req, res) => {
   const paidFromPaycheck = bill.paycheck_id || (paycheck_id ? Number(paycheck_id) : null);
   const paidFromSource = bill.paycheck_id ? null : (source || null);
 
+  // paid_date lets the frontend log a payment that actually happened on an
+  // earlier date (defaults to today there, but is editable so a forgotten
+  // or backdated/catch-up payment records the real date) -- a bare
+  // "YYYY-MM-DD" from a <input type="date"> gets a neutral midnight time
+  // so it parses the same way the datetime('now') default does elsewhere.
+  const paidDateValue = paid_date ? `${paid_date} 00:00:00` : null;
+
   db.prepare(
-    'INSERT INTO bill_payments (bill_id, amount_paid, paid_by, statement_balance, paycheck_id, source) VALUES (?, ?, ?, ?, ?, ?)'
+    `INSERT INTO bill_payments (bill_id, amount_paid, paid_by, statement_balance, paycheck_id, source, paid_date)
+     VALUES (?, ?, ?, ?, ?, ?, COALESCE(?, datetime('now')))`
   ).run(
     bill.id,
     amount_paid ?? bill.amount,
     paid_by || null,
     statement_balance ?? null,
     paidFromPaycheck,
-    paidFromSource
+    paidFromSource,
+    paidDateValue
   );
 
   // Only overwrite the bill's stored balance when this payment actually
