@@ -1,22 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Trash2, Check, Pencil, History } from 'lucide-react';
+import { Plus, Trash2, Check, Pencil, History, AlertTriangle } from 'lucide-react';
 import { api } from '../lib/api.js';
 import Modal from '../components/Modal.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
+import MemberPill from '../components/MemberPill.jsx';
 import BillFormModal from '../components/BillFormModal.jsx';
 import MarkPaidModal from '../components/MarkPaidModal.jsx';
+import CatchUpModal from '../components/CatchUpModal.jsx';
 import PaymentHistoryModal from '../components/PaymentHistoryModal.jsx';
 import { formatCurrency } from '../lib/format.js';
+import { daysUntilDue } from '../lib/dueDate.js';
+import { missedCycles } from '../lib/recurrence.js';
 
 const emptyPaycheck = { pay_date: new Date().toISOString().slice(0, 10), expected_amount: '', notes: '' };
-
-// Whole days between today and a bill's due date, so an unassigned bill due
-// soon (or already overdue -- still "needs to be paid") can be flagged in
-// the board without waiting on the separate overdue/paid status computation.
-function daysUntilDue(dueDate) {
-  const today = new Date(new Date().toDateString());
-  return Math.round((new Date(dueDate) - today) / 86400000);
-}
 
 export default function PaymentPlans() {
   const [paychecks, setPaychecks] = useState([]);
@@ -27,6 +23,7 @@ export default function PaymentPlans() {
   const [addingBill, setAddingBill] = useState(false);
   const [editingBill, setEditingBill] = useState(null);
   const [payingBill, setPayingBill] = useState(null);
+  const [catchUpBill, setCatchUpBill] = useState(null);
   const [historyBill, setHistoryBill] = useState(null);
 
   const refresh = () => {
@@ -55,17 +52,40 @@ export default function PaymentPlans() {
     refresh();
   };
 
-  const confirmPaid = async (amount, paidBy, statementBalance, paycheckId, source) => {
+  const confirmPaid = async (amount, paidBy, statementBalance, paycheckId, source, paidDate) => {
     await api.bills.pay(payingBill.id, {
       amount_paid: amount,
       paid_by: paidBy,
       statement_balance: statementBalance,
       paycheck_id: paycheckId,
       source,
+      paid_date: paidDate,
     });
     setPayingBill(null);
     refresh();
   };
+
+  // A recurring bill that's gone unpaid long enough to owe more than one
+  // cycle (see lib/recurrence.js) gets the catch-up/split flow instead of
+  // the single mark-paid modal, which would otherwise only ever settle the
+  // oldest missed due date and leave the rest looking resolved.
+  const startMarkPaid = (bill) => {
+    if (bill.status === 'overdue' && missedCycles(bill.due_date, bill.recurrence).length > 1) {
+      setCatchUpBill(bill);
+    } else {
+      setPayingBill(bill);
+    }
+  };
+
+  const confirmCatchUpRow = ({ amount, paidBy, statementBalance, paycheckId, source, paidDate }) =>
+    api.bills.pay(catchUpBill.id, {
+      amount_paid: amount,
+      paid_by: paidBy,
+      statement_balance: statementBalance,
+      paycheck_id: paycheckId,
+      source,
+      paid_date: paidDate,
+    });
 
   // Native HTML5 drag-and-drop for desktop/mouse users; the per-card select
   // below is the reliable path on touch devices where drag doesn't work.
@@ -117,9 +137,10 @@ export default function PaymentPlans() {
               paychecks={paychecks}
               onAssign={assignBill}
               onDragStart={onDragStart}
-              onMarkPaid={setPayingBill}
+              onMarkPaid={startMarkPaid}
               onEdit={setEditingBill}
               onHistory={setHistoryBill}
+              members={members}
               dueSoon={daysUntilDue(b.due_date) <= 25}
             />
           ))}
@@ -142,9 +163,10 @@ export default function PaymentPlans() {
                 paychecks={paychecks}
                 onAssign={assignBill}
                 onDragStart={onDragStart}
-                onMarkPaid={setPayingBill}
+                onMarkPaid={startMarkPaid}
                 onEdit={setEditingBill}
                 onHistory={setHistoryBill}
+                members={members}
               />
             ))}
             {p.bills.length === 0 && p.paidHistory.length === 0 && (
@@ -226,6 +248,17 @@ export default function PaymentPlans() {
         />
       )}
 
+      {catchUpBill && (
+        <CatchUpModal
+          bill={catchUpBill}
+          members={members}
+          paychecks={paychecks}
+          onClose={() => setCatchUpBill(null)}
+          onConfirmOne={confirmCatchUpRow}
+          onAllDone={() => { setCatchUpBill(null); refresh(); }}
+        />
+      )}
+
       {historyBill && (
         <PaymentHistoryModal bill={historyBill} members={members} onClose={() => setHistoryBill(null)} />
       )}
@@ -273,7 +306,10 @@ function PaycheckTotals({ paycheck: p }) {
   );
 }
 
-function BillCard({ bill, paychecks, onAssign, onDragStart, onMarkPaid, onEdit, onHistory, dueSoon }) {
+function BillCard({ bill, paychecks, onAssign, onDragStart, onMarkPaid, onEdit, onHistory, members, dueSoon }) {
+  const assignedMember = (members || []).find((m) => m.id === bill.assigned_to);
+  const cyclesOwed = bill.status === 'overdue' ? missedCycles(bill.due_date, bill.recurrence).length : 1;
+
   return (
     <div
       draggable
@@ -285,7 +321,15 @@ function BillCard({ bill, paychecks, onAssign, onDragStart, onMarkPaid, onEdit, 
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-sm font-medium">{bill.name}</p>
-          <p className="text-xs text-slate-400">Due {bill.due_date}</p>
+          <p className="text-xs text-slate-400">
+            Due {bill.due_date}
+            {bill.autopay && <span className="ml-1.5 rounded bg-accent/15 px-1 py-0.5 text-[10px] text-accent-soft">Autopay</span>}
+          </p>
+          {assignedMember && (
+            <div className="mt-0.5">
+              <MemberPill member={assignedMember} />
+            </div>
+          )}
         </div>
         <button
           onClick={() => onEdit(bill)}
@@ -302,7 +346,16 @@ function BillCard({ bill, paychecks, onAssign, onDragStart, onMarkPaid, onEdit, 
             <History size={13} />
           </button>
         </div>
-        {bill.status !== 'paid' && (
+        {bill.status !== 'paid' && cyclesOwed > 1 && (
+          <button
+            onClick={() => onMarkPaid(bill)}
+            title="Multiple payments have piled up -- click to catch up"
+            className="inline-flex items-center gap-1 rounded-md bg-rose-500/15 px-2 py-0.5 text-[11px] font-medium text-rose-400 hover:bg-rose-500/25"
+          >
+            <AlertTriangle size={12} /> {cyclesOwed} due
+          </button>
+        )}
+        {bill.status !== 'paid' && cyclesOwed <= 1 && (
           <button
             onClick={() => onMarkPaid(bill)}
             className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-400 hover:bg-emerald-500/25"

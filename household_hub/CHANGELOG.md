@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.3.0
+
+- **Catch-up / split payments for missed bills.** A recurring bill's
+  due date only ever moves forward when it's marked paid, so a bill
+  left unpaid for multiple cycles (e.g. rent unpaid since August, now
+  October) used to show as a single "overdue" bill with no way to
+  record more than one payment against it. Overdue bills with more
+  than one cycle outstanding now show a "N due" button instead of
+  "Mark paid" (on Dashboard, Bills, and Payment Plans) that opens a
+  catch-up form listing every missed cycle separately, each with its
+  own editable amount and payment date, logged in order.
+- **Payment date entry.** Marking a bill paid now asks for a payment
+  date (defaults to today, editable) instead of always stamping the
+  payment with the current moment -- so a payment that was actually
+  made earlier, but forgotten, can be logged with its real date.
+- **Dashboard is now actionable.** Upcoming bills can be marked paid
+  (or caught up, per above) directly from the Dashboard instead of
+  requiring a trip to Bills or Payment Plans. Its monthly bills total
+  also now normalizes weekly and yearly bills onto a monthly basis
+  instead of only counting bills that recur monthly, so a weekly bill
+  no longer disappears from the household's real monthly cash-flow
+  picture.
+- **Payment history on Debt Management.** Each debt account row now
+  has the same payment-history icon already used on Bills and Payment
+  Plans, instead of needing to look the bill up elsewhere to see what
+  was actually paid on it.
+- **Unified "due soon" highlighting** between Bills and Payment Plans
+  (previously two separate, slightly different definitions) via a
+  shared helper, and autopay bills are now badged consistently on
+  Dashboard, Bills, and Payment Plans.
+- Fixed modals (add/edit bill, mark paid, catch-up) being able to grow
+  taller than the viewport with no way to reach their Save/Cancel
+  buttons -- most noticeable on mobile with the keyboard open. Modals
+  now cap their height and scroll their contents internally, with the
+  header and close button always visible.
+
 ## 0.2.13
 
 - **Fixed a crash-on-boot introduced in 0.2.12**: `schema.sql` set

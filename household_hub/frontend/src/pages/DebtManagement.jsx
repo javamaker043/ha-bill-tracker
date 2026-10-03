@@ -1,18 +1,23 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { History } from 'lucide-react';
 import { api } from '../lib/api.js';
 import { Card, StatCard } from '../components/Card.jsx';
+import PaymentHistoryModal from '../components/PaymentHistoryModal.jsx';
 import { formatCurrency } from '../lib/format.js';
 import { simulatePayoff, utilizationTone } from '../lib/debtPayoff.js';
 
 export default function DebtManagement() {
   const [bills, setBills] = useState([]);
+  const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState('');
   const [extraPayment, setExtraPayment] = useState('');
+  const [historyBill, setHistoryBill] = useState(null);
 
   useEffect(() => {
-    api.bills.list().then((all) => {
+    Promise.all([api.bills.list(), api.members.list()]).then(([all, m]) => {
       setBills(all);
+      setMembers(m);
       setLoading(false);
     });
   }, []);
@@ -89,6 +94,7 @@ export default function DebtManagement() {
                   <th className="px-4 py-3">APR</th>
                   <th className="px-4 py-3">Min payment</th>
                   <th className="px-4 py-3">Payoff at minimum</th>
+                  <th className="px-4 py-3"></th>
                 </tr>
               </thead>
               <tbody>
@@ -115,6 +121,15 @@ export default function DebtManagement() {
                         ) : (
                           <span className="text-rose-400">won't pay off</span>
                         )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => setHistoryBill(b)}
+                          title="Payment history"
+                          className="text-slate-500 hover:text-white"
+                        >
+                          <History size={16} />
+                        </button>
                       </td>
                     </tr>
                   );
@@ -189,6 +204,10 @@ export default function DebtManagement() {
             )}
           </Card>
         </>
+      )}
+
+      {historyBill && (
+        <PaymentHistoryModal bill={historyBill} members={members} onClose={() => setHistoryBill(null)} />
       )}
     </div>
   );
