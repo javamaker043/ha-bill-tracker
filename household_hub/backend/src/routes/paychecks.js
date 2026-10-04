@@ -27,13 +27,18 @@ function withBills(paycheck) {
   // do -- otherwise remaining would visibly go *up* every time a bill here
   // gets marked paid, which is backwards.
   const paid_total = paidHistory.reduce((sum, h) => sum + Number(h.amount_paid || 0), 0);
+  // Once a paycheck has actually landed, what really arrived (actual_amount)
+  // is the money to budget against -- expected_amount is only the plan.
+  const available =
+    paycheck.actual_amount != null ? Number(paycheck.actual_amount) : Number(paycheck.expected_amount);
   return {
     ...paycheck,
     bills,
     paidHistory,
     assigned_total,
     paid_total,
-    remaining: Number(paycheck.expected_amount) - assigned_total - paid_total,
+    available,
+    remaining: available - assigned_total - paid_total,
   };
 }
 
@@ -54,12 +59,23 @@ router.get('/unassigned-bills', (_req, res) => {
   res.json(bills);
 });
 
+// '' / null / undefined mean "not recorded yet" (null in the db); anything
+// else must be a finite non-negative number.
+function parseAmount(value) {
+  if (value === '' || value == null) return { value: null };
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return { error: true };
+  return { value: n };
+}
+
 router.post('/', (req, res) => {
-  const { pay_date, expected_amount, notes } = req.body;
+  const { pay_date, expected_amount, actual_amount, notes } = req.body;
   if (!pay_date) return res.status(400).json({ error: 'pay_date is required' });
+  const actual = parseAmount(actual_amount);
+  if (actual.error) return res.status(400).json({ error: 'actual_amount must be a non-negative number' });
   const info = db
-    .prepare('INSERT INTO paychecks (pay_date, expected_amount, notes) VALUES (?, ?, ?)')
-    .run(pay_date, expected_amount || 0, notes || null);
+    .prepare('INSERT INTO paychecks (pay_date, expected_amount, actual_amount, notes) VALUES (?, ?, ?, ?)')
+    .run(pay_date, expected_amount || 0, actual.value, notes || null);
   res.status(201).json(withBills(db.prepare('SELECT * FROM paychecks WHERE id = ?').get(info.lastInsertRowid)));
 });
 
@@ -67,9 +83,13 @@ router.put('/:id', (req, res) => {
   const existing = db.prepare('SELECT * FROM paychecks WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'not found' });
   const merged = { ...existing, ...req.body };
-  db.prepare('UPDATE paychecks SET pay_date=?, expected_amount=?, notes=? WHERE id=?').run(
+  if (!merged.pay_date) return res.status(400).json({ error: 'pay_date is required' });
+  const actual = parseAmount(merged.actual_amount);
+  if (actual.error) return res.status(400).json({ error: 'actual_amount must be a non-negative number' });
+  db.prepare('UPDATE paychecks SET pay_date=?, expected_amount=?, actual_amount=?, notes=? WHERE id=?').run(
     merged.pay_date,
-    merged.expected_amount,
+    Number(merged.expected_amount) || 0,
+    actual.value,
     merged.notes,
     req.params.id
   );

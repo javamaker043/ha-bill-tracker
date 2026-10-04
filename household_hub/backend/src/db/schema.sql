@@ -118,15 +118,13 @@ CREATE TABLE IF NOT EXISTS notification_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_bills_due_date ON bills(due_date);
-CREATE INDEX IF NOT EXISTS idx_bills_paycheck ON bills(paycheck_id);
 CREATE INDEX IF NOT EXISTS idx_paychecks_pay_date ON paychecks(pay_date);
 CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
 CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
 
--- members.ha_user_id already has an inline UNIQUE for brand-new databases;
--- this index makes the same guarantee for databases where the column was
--- added later via migration (see db/index.js), where ALTER TABLE ADD COLUMN
--- can't declare UNIQUE inline. Partial (WHERE ... IS NOT NULL) so multiple
--- unclaimed (NULL) members are still allowed.
-CREATE UNIQUE INDEX IF NOT EXISTS idx_members_ha_user_id
-  ON members(ha_user_id) WHERE ha_user_id IS NOT NULL;
+-- Indexes on columns that were added to existing tables later
+-- (bills.paycheck_id, members.ha_user_id) are created in db/index.js, after
+-- the migration that adds those columns -- this file runs in full on every
+-- boot, including against an older database that doesn't have them yet, so
+-- an index here would fail with "no such column" before the migration ever
+-- got the chance to add it.

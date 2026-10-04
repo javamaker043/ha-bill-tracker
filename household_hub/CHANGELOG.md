@@ -1,5 +1,71 @@
 # Changelog
 
+## 0.4.0
+
+Finishes the remaining items from the mobile + financial-management
+review, and fixes the workflow bugs a full end-to-end pass turned up.
+
+**New**
+- **Undo a payment.** Payment history now has an Undo on the most recent
+  payment (two-tap confirm): it deletes the payment and moves the bill
+  back to the due date it was covering. Only the latest payment can be
+  undone, since payments apply in order.
+- **Paycheck actuals vs. expected.** Edit a paycheck (pencil on its
+  Payment Plans column) to record what it actually paid. Once set, the
+  actual amount replaces the expected one for Available/Remaining, and
+  the column shows how far over/short it came in versus plan.
+- **Avalanche vs. snowball** comparison on Debt Management (when there
+  are 2+ debts): set a total monthly debt budget and see debt-free
+  date, total interest, and payoff order for both strategies side by
+  side.
+- **CSV export** of bills and full payment history from Settings.
+- **Delete a bill** from its edit form (two-tap confirm) -- there was
+  previously no way to remove one.
+- Dashboard: **dollar amount past due** under the overdue count (counts
+  every missed cycle, not just one per bill) and a **Next paycheck**
+  card showing what's left after planned bills. "Open tasks" now
+  includes in-progress tasks.
+- **Mobile layouts**: Bills and Debt Management show a card per item
+  below the desktop breakpoint instead of a sideways-scrolling table;
+  Bill Calendar shows a dated list on phones; the catch-up form stacks
+  amount/date per payment instead of squeezing them into one row.
+
+**Fixed**
+- **The calendar showed each recurring bill in only one month.** Future
+  cycles are now projected, so next month's rent, cards, and
+  subscriptions appear.
+- **Month-end due dates drifted.** A bill due on the 31st rolled
+  Jan 31 -> Mar 3 and then stayed on the 3rd forever. Monthly/yearly
+  bills now keep their original day (Jan 31 -> Feb 28 -> Mar 31).
+- **"Today" was UTC.** In the evening in US timezones, the payment-date
+  default, "overdue", and "due this week" all flipped to tomorrow hours
+  early, and a bill due today never counted as due this week. Everything
+  now uses the local calendar day (server-side via the add-on's
+  timezone). Payment dates are stored as plain days so a backdated
+  payment can't display as the day before.
+- Catch-up: if one payment in the batch failed part-way, retrying
+  re-logged the ones that had already saved. Already-saved rows are now
+  skipped, and every payment records the paycheck it came from (the
+  server clears a bill's paycheck after the first one).
+- Marking a bill paid is now atomic (payment + rollover commit
+  together), rejects negative/invalid amounts and dates, an already-paid
+  one-time bill, and a paycheck that no longer exists, instead of
+  logging a duplicate or failing with a database error.
+- Editing a bill no longer saves the transient "overdue" status.
+- A stray "0" appeared next to non-autopay bills on Payment Plans.
+- **Upgrading from a very old database could crash on boot** (`no such
+  column: paycheck_id` / `ha_user_id`): two indexes on later-added
+  columns ran before the migration that adds them. They're now created
+  after it.
+- A Home Assistant outage during the notification test/persons lookup
+  could take the whole add-on down (unhandled rejection in an async
+  route); one failing reminder no longer blocks the rest from sending.
+- API errors now come back as JSON (and unknown `/api` paths as a JSON
+  404) instead of an HTML page the UI couldn't read.
+- Deleting a paycheck, member, or category now asks for a second tap,
+  and uses an in-page confirm rather than `window.confirm`, which some
+  mobile webviews don't show.
+
 ## 0.3.0
 
 - **Catch-up / split payments for missed bills.** A recurring bill's
