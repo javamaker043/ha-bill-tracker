@@ -61,6 +61,21 @@ ensureColumn('bill_payments', 'paycheck_id', 'INTEGER REFERENCES paychecks(id) O
 ensureColumn('bill_payments', 'source', 'TEXT');
 ensureColumn('bills', 'interest_rate', 'REAL');
 ensureColumn('bills', 'credit_limit', 'REAL');
+// Original day-of-month a monthly/yearly bill is due on, so a 31st-of-the-month
+// bill that's clamped to Feb 28 comes back to the 31st in March instead of
+// drifting to the 28th forever (see services/recurrence.js).
+ensureColumn('bills', 'due_day', 'INTEGER');
+// What a paycheck actually paid, vs. expected_amount which is the plan.
+ensureColumn('paychecks', 'actual_amount', 'REAL');
+
+// Created here rather than in schema.sql so they only run once the columns
+// are guaranteed to exist (see the note at the bottom of schema.sql).
+db.exec('CREATE INDEX IF NOT EXISTS idx_bills_paycheck ON bills(paycheck_id)');
+// members.ha_user_id has an inline UNIQUE on brand-new databases; a column
+// added later via ALTER TABLE can't declare UNIQUE inline, so this index
+// gives migrated databases the same guarantee. Partial (WHERE ... IS NOT
+// NULL) so multiple unclaimed (NULL) members are still allowed.
+db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_members_ha_user_id ON members(ha_user_id) WHERE ha_user_id IS NOT NULL');
 
 const isDebtColumnJustAdded = ensureColumn('categories', 'is_debt', 'INTEGER NOT NULL DEFAULT 0');
 

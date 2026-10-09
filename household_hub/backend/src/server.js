@@ -12,6 +12,7 @@ import tasksRouter from './routes/tasks.js';
 import notifyRouter from './routes/notify.js';
 import categoriesRouter from './routes/categories.js';
 import paychecksRouter from './routes/paychecks.js';
+import exportRouter from './routes/export.js';
 import { startReminderScheduler } from './services/reminders.js';
 import { importMembersOnFirstBoot } from './services/bootstrap.js';
 import db from './db/index.js';
@@ -33,12 +34,24 @@ app.use('/api/tasks', tasksRouter);
 app.use('/api/notify', notifyRouter);
 app.use('/api/categories', categoriesRouter);
 app.use('/api/paychecks', paychecksRouter);
+app.use('/api/export', exportRouter);
+
+// Unknown API paths get a JSON 404 instead of falling through to the SPA's
+// index.html below (which the frontend would then fail to parse as JSON).
+app.use('/api', (_req, res) => res.status(404).json({ error: 'not found' }));
 
 // Serve the built React app (see Dockerfile: frontend build output -> /app/public)
 const staticDir = path.join(__dirname, '../public');
 app.use(express.static(staticDir));
 app.get('*', (_req, res) => {
   res.sendFile(path.join(staticDir, 'index.html'));
+});
+
+// A thrown error in any route (e.g. a constraint violation) becomes a JSON
+// {error} the UI can show, instead of Express's default HTML 500 page.
+app.use((err, _req, res, _next) => {
+  console.error('[household-hub] request failed', err);
+  res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
 });
 
 await importMembersOnFirstBoot().catch((err) =>

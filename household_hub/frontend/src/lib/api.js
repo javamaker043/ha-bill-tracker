@@ -49,6 +49,8 @@ export const api = {
     assignPaycheck: (id, paycheck_id) =>
       request(`/bills/${id}/paycheck`, { method: 'PATCH', body: JSON.stringify({ paycheck_id }) }),
     remove: (id) => request(`/bills/${id}`, { method: 'DELETE' }),
+    removePayment: (billId, paymentId) =>
+      request(`/bills/${billId}/payments/${paymentId}`, { method: 'DELETE' }),
   },
   paychecks: {
     list: () => request('/paychecks'),

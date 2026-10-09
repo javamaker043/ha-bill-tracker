@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 import Modal from './Modal.jsx';
 import { api } from '../lib/api.js';
 import { isDebtCategory } from '../lib/billCategory.js';
+import { todayISO } from '../lib/dueDate.js';
+import ConfirmDeleteButton from './ConfirmDeleteButton.jsx';
 
 const empty = {
   name: '', amount: '', payee: '', category: 'Other', recurrence: 'monthly',
-  due_date: new Date().toISOString().slice(0, 10), autopay: false,
+  due_date: todayISO(), autopay: false,
   assigned_to: '', reminder_days_before: 3, current_balance: '',
   interest_rate: '', credit_limit: '', notes: '',
 };
@@ -15,6 +17,7 @@ const ADD_NEW = '__add_new__';
 export default function BillFormModal({ bill, members, onClose, onSaved }) {
   const [form, setForm] = useState(bill ? { ...empty, ...bill } : empty);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
   const [categories, setCategories] = useState([]);
   const [newCategory, setNewCategory] = useState('');
 
@@ -40,6 +43,7 @@ export default function BillFormModal({ bill, members, onClose, onSaved }) {
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
+    setError(null);
     try {
       const payload = {
         ...form,
@@ -52,8 +56,19 @@ export default function BillFormModal({ bill, members, onClose, onSaved }) {
       if (bill) await api.bills.update(bill.id, payload);
       else await api.bills.create(payload);
       onSaved();
-    } finally {
+    } catch (err) {
+      setError(err.message);
       setSaving(false);
+    }
+  };
+
+  const deleteBill = async () => {
+    setError(null);
+    try {
+      await api.bills.remove(bill.id);
+      onSaved();
+    } catch (err) {
+      setError(err.message);
     }
   };
 
@@ -176,7 +191,15 @@ export default function BillFormModal({ bill, members, onClose, onSaved }) {
           <textarea value={form.notes || ''} onChange={set('notes')} className={inputClass} rows={2} />
         </Field>
 
-        <div className="mt-4 flex justify-end gap-2">
+        {error && <p className="text-xs text-rose-400">{error}</p>}
+        <div className="mt-4 flex items-center justify-end gap-2">
+          {bill && (
+            <span className="mr-auto">
+              <ConfirmDeleteButton title="Delete bill and its payment history" onConfirm={deleteBill}>
+                <span className="text-xs text-slate-500 hover:text-rose-400">Delete bill</span>
+              </ConfirmDeleteButton>
+            </span>
+          )}
           <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-slate-300 hover:bg-white/5">
             Cancel
           </button>

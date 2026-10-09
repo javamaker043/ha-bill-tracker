@@ -9,10 +9,10 @@ import MarkPaidModal from '../components/MarkPaidModal.jsx';
 import CatchUpModal from '../components/CatchUpModal.jsx';
 import PaymentHistoryModal from '../components/PaymentHistoryModal.jsx';
 import { formatCurrency } from '../lib/format.js';
-import { daysUntilDue } from '../lib/dueDate.js';
-import { missedCycles } from '../lib/recurrence.js';
+import { daysUntilDue, todayISO } from '../lib/dueDate.js';
+import { cyclesOwed as countCyclesOwed } from '../lib/recurrence.js';
 
-const emptyPaycheck = { pay_date: new Date().toISOString().slice(0, 10), expected_amount: '', notes: '' };
+const emptyPaycheck = () => ({ pay_date: todayISO(), expected_amount: '', notes: '' });
 
 export default function PaymentPlans() {
   const [paychecks, setPaychecks] = useState([]);
@@ -20,6 +20,7 @@ export default function PaymentPlans() {
   const [members, setMembers] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyPaycheck);
+  const [editingPaycheck, setEditingPaycheck] = useState(null);
   const [addingBill, setAddingBill] = useState(false);
   const [editingBill, setEditingBill] = useState(null);
   const [payingBill, setPayingBill] = useState(null);
@@ -37,13 +38,28 @@ export default function PaymentPlans() {
     e.preventDefault();
     if (!form.pay_date) return;
     await api.paychecks.create({ ...form, expected_amount: Number(form.expected_amount) || 0 });
-    setForm(emptyPaycheck);
+    setForm(emptyPaycheck());
     setShowForm(false);
     refresh();
   };
 
-  const removePaycheck = async (id) => {
-    await api.paychecks.remove(id);
+  // The column asks for confirmation inline before calling this (see
+  // BoardColumn) -- deleting a paycheck unassigns every bill planned on it.
+  const removePaycheck = async (paycheck) => {
+    await api.paychecks.remove(paycheck.id);
+    refresh();
+  };
+
+  const deleteWarning = (paycheck) => {
+    const planned = paycheck.bills.length;
+    return planned
+      ? `Delete the ${paycheck.pay_date} paycheck? Its ${planned} planned bill${planned === 1 ? '' : 's'} will go back to Unassigned.`
+      : `Delete the ${paycheck.pay_date} paycheck?`;
+  };
+
+  const savePaycheck = async (data) => {
+    await api.paychecks.update(editingPaycheck.id, data);
+    setEditingPaycheck(null);
     refresh();
   };
 
@@ -70,7 +86,7 @@ export default function PaymentPlans() {
   // the single mark-paid modal, which would otherwise only ever settle the
   // oldest missed due date and leave the rest looking resolved.
   const startMarkPaid = (bill) => {
-    if (bill.status === 'overdue' && missedCycles(bill.due_date, bill.recurrence).length > 1) {
+    if (countCyclesOwed(bill) > 1) {
       setCatchUpBill(bill);
     } else {
       setPayingBill(bill);
@@ -141,7 +157,6 @@ export default function PaymentPlans() {
               onEdit={setEditingBill}
               onHistory={setHistoryBill}
               members={members}
-              dueSoon={daysUntilDue(b.due_date) <= 25}
             />
           ))}
           {unassigned.length === 0 && <EmptyHint text="Nothing left to assign." />}
@@ -154,7 +169,9 @@ export default function PaymentPlans() {
             subtitle={<PaycheckTotals paycheck={p} />}
             onDrop={(e) => onDrop(e, p.id)}
             onDragOver={allowDrop}
-            onDelete={() => removePaycheck(p.id)}
+            onDelete={() => removePaycheck(p)}
+            deleteWarning={deleteWarning(p)}
+            onEdit={() => setEditingPaycheck(p)}
           >
             {p.bills.map((b) => (
               <BillCard
@@ -229,6 +246,14 @@ export default function PaymentPlans() {
         </Modal>
       )}
 
+      {editingPaycheck && (
+        <PaycheckEditModal
+          paycheck={editingPaycheck}
+          onClose={() => setEditingPaycheck(null)}
+          onSave={savePaycheck}
+        />
+      )}
+
       {(addingBill || editingBill) && (
         <BillFormModal
           bill={editingBill}
@@ -260,13 +285,106 @@ export default function PaymentPlans() {
       )}
 
       {historyBill && (
-        <PaymentHistoryModal bill={historyBill} members={members} onClose={() => setHistoryBill(null)} />
+        <PaymentHistoryModal
+          bill={historyBill}
+          members={members}
+          onClose={() => setHistoryBill(null)}
+          onChanged={refresh}
+        />
       )}
     </div>
   );
 }
 
-function BoardColumn({ title, subtitle, onDrop, onDragOver, onDelete, children }) {
+// Record what a paycheck actually paid once it lands (and fix the date or
+// plan if they changed). Once an actual amount is set it replaces the
+// expected one everywhere the paycheck is budgeted against.
+function PaycheckEditModal({ paycheck, onClose, onSave }) {
+  const [payDate, setPayDate] = useState(paycheck.pay_date);
+  const [expected, setExpected] = useState(paycheck.expected_amount);
+  const [actual, setActual] = useState(paycheck.actual_amount ?? '');
+  const [notes, setNotes] = useState(paycheck.notes ?? '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      await onSave({
+        pay_date: payDate,
+        expected_amount: Number(expected) || 0,
+        actual_amount: actual === '' ? null : Number(actual),
+        notes: notes || null,
+      });
+    } catch (err) {
+      setError(err.message);
+      setSaving(false);
+    }
+  };
+
+  const variance = actual === '' ? null : Number(actual) - (Number(expected) || 0);
+
+  return (
+    <Modal title="Edit paycheck" onClose={onClose}>
+      <form onSubmit={submit} className="space-y-3">
+        <Field label="Pay date">
+          <input required type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} className={inputClass} />
+        </Field>
+        <Field label="Expected amount">
+          <input
+            required
+            type="number"
+            step="0.01"
+            min="0"
+            value={expected}
+            onChange={(e) => setExpected(e.target.value)}
+            className={inputClass}
+          />
+        </Field>
+        <Field label="Actual amount received">
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={actual}
+            onChange={(e) => setActual(e.target.value)}
+            placeholder="Leave blank until it lands"
+            className={inputClass}
+          />
+          {variance != null && variance !== 0 && (
+            <span className={`mt-1 block text-xs ${variance < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+              {variance < 0 ? 'Short' : 'Over'} expected by {formatCurrency(Math.abs(variance))} -- budgeting now
+              uses the actual amount.
+            </span>
+          )}
+        </Field>
+        <Field label="Notes (optional)">
+          <input value={notes} onChange={(e) => setNotes(e.target.value)} className={inputClass} />
+        </Field>
+        {error && <p className="text-xs text-rose-400">{error}</p>}
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-slate-300 hover:bg-white/5">
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium hover:bg-accent-soft disabled:opacity-50"
+          >
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function BoardColumn({ title, subtitle, onDrop, onDragOver, onDelete, onEdit, deleteWarning, children }) {
+  // Inline two-step confirm (not window.confirm, which some embedded
+  // webviews -- e.g. the Home Assistant mobile app -- don't reliably show).
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   return (
     <div
       onDrop={onDrop}
@@ -278,12 +396,39 @@ function BoardColumn({ title, subtitle, onDrop, onDragOver, onDelete, children }
           <p className="text-sm font-semibold">{title}</p>
           <div className="text-xs text-slate-400">{subtitle}</div>
         </div>
-        {onDelete && (
-          <button onClick={onDelete} className="text-slate-500 hover:text-rose-400">
-            <Trash2 size={14} />
-          </button>
-        )}
+        <div className="flex items-center gap-1">
+          {onEdit && (
+            <button onClick={onEdit} title="Edit paycheck / record actual amount" className="p-1 text-slate-500 hover:text-white">
+              <Pencil size={14} />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={() => setConfirmingDelete(true)}
+              title="Delete paycheck"
+              className="p-1 text-slate-500 hover:text-rose-400"
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
+        </div>
       </div>
+      {confirmingDelete && (
+        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 p-2 text-xs text-rose-200">
+          <p>{deleteWarning || 'Delete this paycheck?'}</p>
+          <div className="mt-2 flex gap-2">
+            <button
+              onClick={() => { setConfirmingDelete(false); onDelete(); }}
+              className="rounded bg-rose-500/30 px-2 py-1 font-medium hover:bg-rose-500/40"
+            >
+              Delete
+            </button>
+            <button onClick={() => setConfirmingDelete(false)} className="px-2 py-1 text-slate-300 hover:text-white">
+              Keep
+            </button>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col gap-2">{children}</div>
     </div>
   );
@@ -293,9 +438,18 @@ function BoardColumn({ title, subtitle, onDrop, onDragOver, onDelete, children }
 // still planned (live, unpaid bills) and what's already been paid, so it
 // doesn't visibly go back up every time something here gets marked paid.
 function PaycheckTotals({ paycheck: p }) {
+  const received = p.actual_amount != null;
+  const variance = received ? Number(p.actual_amount) - Number(p.expected_amount) : 0;
   return (
     <div className="space-y-0.5">
-      <p>Available {formatCurrency(p.expected_amount)}</p>
+      <p>
+        {received ? 'Received' : 'Expected'} {formatCurrency(p.available)}
+        {received && variance !== 0 && (
+          <span className={variance < 0 ? 'text-rose-400' : 'text-emerald-400'}>
+            {' '}({variance < 0 ? '-' : '+'}{formatCurrency(Math.abs(variance))} vs plan)
+          </span>
+        )}
+      </p>
       <p>
         Planned {formatCurrency(p.assigned_total)} · Spent {formatCurrency(p.paid_total)}
       </p>
@@ -306,9 +460,10 @@ function PaycheckTotals({ paycheck: p }) {
   );
 }
 
-function BillCard({ bill, paychecks, onAssign, onDragStart, onMarkPaid, onEdit, onHistory, members, dueSoon }) {
+function BillCard({ bill, paychecks, onAssign, onDragStart, onMarkPaid, onEdit, onHistory, members }) {
   const assignedMember = (members || []).find((m) => m.id === bill.assigned_to);
-  const cyclesOwed = bill.status === 'overdue' ? missedCycles(bill.due_date, bill.recurrence).length : 1;
+  const cyclesOwed = countCyclesOwed(bill);
+  const dueSoon = daysUntilDue(bill.due_date) <= 25;
 
   return (
     <div
@@ -323,7 +478,7 @@ function BillCard({ bill, paychecks, onAssign, onDragStart, onMarkPaid, onEdit, 
           <p className="text-sm font-medium">{bill.name}</p>
           <p className="text-xs text-slate-400">
             Due {bill.due_date}
-            {bill.autopay && <span className="ml-1.5 rounded bg-accent/15 px-1 py-0.5 text-[10px] text-accent-soft">Autopay</span>}
+            {Boolean(bill.autopay) && <span className="ml-1.5 rounded bg-accent/15 px-1 py-0.5 text-[10px] text-accent-soft">Autopay</span>}
           </p>
           {assignedMember && (
             <div className="mt-0.5">
@@ -372,7 +527,7 @@ function BillCard({ bill, paychecks, onAssign, onDragStart, onMarkPaid, onEdit, 
         <option value="">Unassigned</option>
         {paychecks.map((p) => (
           <option key={p.id} value={p.id}>
-            {p.pay_date} ({formatCurrency(p.expected_amount)})
+            {p.pay_date} ({formatCurrency(p.available ?? p.expected_amount)})
           </option>
         ))}
       </select>

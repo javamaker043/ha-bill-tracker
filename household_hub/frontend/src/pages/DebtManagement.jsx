@@ -4,7 +4,7 @@ import { api } from '../lib/api.js';
 import { Card, StatCard } from '../components/Card.jsx';
 import PaymentHistoryModal from '../components/PaymentHistoryModal.jsx';
 import { formatCurrency } from '../lib/format.js';
-import { simulatePayoff, utilizationTone } from '../lib/debtPayoff.js';
+import { simulatePayoff, simulateStrategy, utilizationTone } from '../lib/debtPayoff.js';
 
 export default function DebtManagement() {
   const [bills, setBills] = useState([]);
@@ -12,14 +12,19 @@ export default function DebtManagement() {
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState('');
   const [extraPayment, setExtraPayment] = useState('');
+  const [strategyBudget, setStrategyBudget] = useState('');
   const [historyBill, setHistoryBill] = useState(null);
 
+  const refresh = () =>
+    Promise.all([api.bills.list(), api.members.list()])
+      .then(([all, m]) => {
+        setBills(all);
+        setMembers(m);
+      })
+      .finally(() => setLoading(false));
+
   useEffect(() => {
-    Promise.all([api.bills.list(), api.members.list()]).then(([all, m]) => {
-      setBills(all);
-      setMembers(m);
-      setLoading(false);
-    });
+    refresh();
   }, []);
 
   // Debt Management only makes sense for accounts that carry a running
@@ -49,6 +54,23 @@ export default function DebtManagement() {
   const accelerated = selected
     ? simulatePayoff(selected.current_balance, selected.interest_rate, Number(selected.amount) + extra)
     : null;
+
+  // Avalanche vs. snowball across *all* debt accounts at once, given one
+  // shared monthly budget (defaults to just covering every minimum).
+  const strategyInput = useMemo(
+    () =>
+      debts.map((b) => ({
+        id: b.id,
+        name: b.name,
+        balance: b.current_balance,
+        apr: b.interest_rate,
+        minPayment: b.amount,
+      })),
+    [debts]
+  );
+  const budgetValue = strategyBudget === '' ? totals.totalMinPayment : Number(strategyBudget) || 0;
+  const avalanche = useMemo(() => simulateStrategy(strategyInput, budgetValue, 'avalanche'), [strategyInput, budgetValue]);
+  const snowball = useMemo(() => simulateStrategy(strategyInput, budgetValue, 'snowball'), [strategyInput, budgetValue]);
 
   if (loading) return <p className="text-slate-400">Loading…</p>;
 
@@ -83,8 +105,51 @@ export default function DebtManagement() {
             <StatCard label="Monthly minimum payments" value={formatCurrency(totals.totalMinPayment)} />
           </div>
 
-          <Card className="overflow-x-auto" padding="p-0">
-            <table className="w-full min-w-[760px] text-sm">
+          {/* Phones/narrow tablets: a card per account instead of a wide table. */}
+          <div className="space-y-3 lg:hidden">
+            {debts.map((b) => {
+              const util = b.credit_limit ? (Number(b.current_balance) / Number(b.credit_limit)) * 100 : null;
+              const payoff = simulatePayoff(b.current_balance, b.interest_rate, b.amount);
+              return (
+                <div key={b.id} className="rounded-xl2 border border-white/5 bg-surface-raised p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-sm font-semibold">{b.name}</p>
+                    <button
+                      onClick={() => setHistoryBill(b)}
+                      title="Payment history"
+                      className="p-1 text-slate-500 hover:text-white"
+                    >
+                      <History size={16} />
+                    </button>
+                  </div>
+                  <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                    <dt className="text-slate-500">Balance</dt>
+                    <dd className="text-right text-sm font-medium">{formatCurrency(b.current_balance)}</dd>
+                    <dt className="text-slate-500">Limit</dt>
+                    <dd className="text-right text-slate-300">{b.credit_limit ? formatCurrency(b.credit_limit) : '—'}</dd>
+                    <dt className="text-slate-500">APR</dt>
+                    <dd className="text-right text-slate-300">
+                      {b.interest_rate != null ? `${Number(b.interest_rate).toFixed(2)}%` : '—'}
+                    </dd>
+                    <dt className="text-slate-500">Min payment</dt>
+                    <dd className="text-right text-slate-300">{formatCurrency(b.amount)}</dd>
+                    <dt className="text-slate-500">Payoff at minimum</dt>
+                    <dd className="text-right text-slate-300">
+                      {payoff.payoffPossible ? `${payoff.months} mo` : <span className="text-rose-400">won't pay off</span>}
+                    </dd>
+                  </dl>
+                  {util != null && (
+                    <div className="mt-3">
+                      <UtilizationBar pct={util} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <Card className="hidden overflow-x-auto lg:block" padding="p-0">
+            <table className="w-full text-sm">
               <thead className="bg-surface-muted text-left text-xs uppercase tracking-wide text-slate-400">
                 <tr>
                   <th className="px-4 py-3">Account</th>
@@ -137,6 +202,40 @@ export default function DebtManagement() {
               </tbody>
             </table>
           </Card>
+
+          {debts.length > 1 && (
+            <Card>
+              <h3 className="mb-1 text-sm font-semibold text-slate-200">Payoff strategy: avalanche vs. snowball</h3>
+              <p className="mb-4 text-xs text-slate-500">
+                Both pay every account's minimum, then put the rest of your monthly debt budget on one account
+                at a time, rolling each paid-off account's payment into the next. <strong>Avalanche</strong>{' '}
+                targets the highest APR first (least interest); <strong>snowball</strong> targets the smallest
+                balance first (quicker early wins).
+              </p>
+              <label className="mb-4 block sm:max-w-xs">
+                <span className="mb-1 block text-xs font-medium text-slate-400">Total monthly debt budget</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={strategyBudget}
+                  onChange={(e) => setStrategyBudget(e.target.value)}
+                  placeholder={totals.totalMinPayment.toFixed(2)}
+                  className="w-full rounded-lg border border-white/10 bg-surface-muted px-3 py-2 text-sm outline-none focus:border-accent"
+                />
+                <span className="mt-1 block text-xs text-slate-500">
+                  Blank = just the {formatCurrency(totals.totalMinPayment)} of minimums. Enter more to see what
+                  the extra {budgetValue > totals.totalMinPayment ? formatCurrency(budgetValue - totals.totalMinPayment) : '$0.00'}{' '}
+                  buys.
+                </span>
+              </label>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <StrategyResult title="Avalanche (highest APR first)" result={avalanche} />
+                <StrategyResult title="Snowball (smallest balance first)" result={snowball} />
+              </div>
+              <StrategyVerdict avalanche={avalanche} snowball={snowball} />
+            </Card>
+          )}
 
           <Card>
             <h3 className="mb-1 text-sm font-semibold text-slate-200">Payoff scenario</h3>
@@ -207,7 +306,12 @@ export default function DebtManagement() {
       )}
 
       {historyBill && (
-        <PaymentHistoryModal bill={historyBill} members={members} onClose={() => setHistoryBill(null)} />
+        <PaymentHistoryModal
+          bill={historyBill}
+          members={members}
+          onClose={() => setHistoryBill(null)}
+          onChanged={refresh}
+        />
       )}
     </div>
   );
@@ -220,7 +324,7 @@ function UtilizationBar({ pct }) {
       <div className="h-1.5 w-24 overflow-hidden rounded-full bg-white/10">
         <div className={`h-full ${tone}`} style={{ width: `${Math.min(pct, 100)}%` }} />
       </div>
-      <span className="text-xs text-slate-400">{pct.toFixed(0)}%</span>
+      <span className="text-xs text-slate-400">{pct.toFixed(0)}% used</span>
     </div>
   );
 }
@@ -242,6 +346,57 @@ function ScenarioResult({ title, payment, result }) {
           At this payment the balance never shrinks -- interest outpaces what's being paid.
         </p>
       )}
+    </div>
+  );
+}
+
+function StrategyResult({ title, result }) {
+  return (
+    <div className="rounded-lg border border-white/5 bg-surface-muted p-3">
+      <p className="text-xs font-medium text-slate-400">{title}</p>
+      {result.payoffPossible ? (
+        <>
+          <p className="mt-1 text-sm text-slate-300">
+            Debt-free in {result.months} month{result.months === 1 ? '' : 's'}
+          </p>
+          <p className="text-sm text-slate-300">Total interest {formatCurrency(result.totalInterest)}</p>
+          <ol className="mt-2 space-y-0.5 text-xs text-slate-400">
+            {result.order.map((a, i) => (
+              <li key={a.id}>
+                {i + 1}. {a.name} <span className="text-slate-500">-- paid off month {a.month}</span>
+              </li>
+            ))}
+          </ol>
+        </>
+      ) : (
+        <p className="mt-1 text-sm text-rose-400">
+          At {formatCurrency(result.budget)}/mo some balances never shrink -- interest outpaces the payments.
+          Raise the budget to see a payoff plan.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function StrategyVerdict({ avalanche, snowball }) {
+  if (!avalanche.payoffPossible || !snowball.payoffPossible) return null;
+  const saved = snowball.totalInterest - avalanche.totalInterest;
+  const monthsSooner = snowball.months - avalanche.months;
+  if (saved < 0.01 && monthsSooner === 0) {
+    return (
+      <p className="mt-4 text-sm text-slate-300">
+        With these accounts both strategies finish at the same time for the same interest -- pick whichever
+        keeps you motivated.
+      </p>
+    );
+  }
+  return (
+    <div className="mt-4 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-emerald-300">
+      Avalanche saves {formatCurrency(saved)} in interest
+      {monthsSooner > 0 ? ` and finishes ${monthsSooner} month${monthsSooner === 1 ? '' : 's'} sooner` : ''} than
+      snowball. Snowball's advantage is clearing{' '}
+      {snowball.order[0] ? <strong>{snowball.order[0].name}</strong> : 'your first account'} by month{' '}
+      {snowball.order[0]?.month} for a quicker first win.
     </div>
   );
 }

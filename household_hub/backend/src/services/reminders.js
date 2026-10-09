@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import db from '../db/index.js';
 import { notify } from './homeAssistant.js';
+import { localToday } from './dateUtil.js';
 
 const DEFAULT_NOTIFY = process.env.NOTIFY_SERVICE || 'notify.notify';
 const LOOKAHEAD_DAYS = Number(process.env.REMINDER_LOOKAHEAD_DAYS || 3);
@@ -24,7 +25,7 @@ function logSent(type, refTable, refId) {
 }
 
 async function checkBills() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localToday();
   const bills = db.prepare("SELECT * FROM bills WHERE status != 'paid'").all();
 
   for (const bill of bills) {
@@ -33,26 +34,32 @@ async function checkBills() {
     );
     const target = resolveNotifyTarget(bill.assigned_to);
 
-    if (daysUntilDue < 0 && !alreadySent('bill_overdue', 'bills', bill.id)) {
-      await notify(target, 'Bill overdue', `${bill.name} ($${bill.amount}) was due ${bill.due_date}`);
-      logSent('bill_overdue', 'bills', bill.id);
-    } else if (
-      daysUntilDue >= 0 &&
-      daysUntilDue <= (bill.reminder_days_before ?? LOOKAHEAD_DAYS) &&
-      !alreadySent('bill_reminder', 'bills', bill.id)
-    ) {
-      await notify(
-        target,
-        'Upcoming bill',
-        `${bill.name} ($${bill.amount}) is due ${bill.due_date}`
-      );
-      logSent('bill_reminder', 'bills', bill.id);
+    // One bill's notification failing (bad notify target, HA hiccup) must
+    // not stop everyone else's reminders from going out in the same run.
+    try {
+      if (daysUntilDue < 0 && !alreadySent('bill_overdue', 'bills', bill.id)) {
+        await notify(target, 'Bill overdue', `${bill.name} ($${bill.amount}) was due ${bill.due_date}`);
+        logSent('bill_overdue', 'bills', bill.id);
+      } else if (
+        daysUntilDue >= 0 &&
+        daysUntilDue <= (bill.reminder_days_before ?? LOOKAHEAD_DAYS) &&
+        !alreadySent('bill_reminder', 'bills', bill.id)
+      ) {
+        await notify(
+          target,
+          'Upcoming bill',
+          `${bill.name} ($${bill.amount}) is due ${bill.due_date}`
+        );
+        logSent('bill_reminder', 'bills', bill.id);
+      }
+    } catch (err) {
+      console.error(`[reminders] notification for bill ${bill.id} failed`, err);
     }
   }
 }
 
 async function checkTasks() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localToday();
   const tasks = db
     .prepare("SELECT * FROM tasks WHERE status != 'done' AND due_date IS NOT NULL AND due_date <= ?")
     .all(today);
@@ -60,8 +67,12 @@ async function checkTasks() {
   for (const task of tasks) {
     if (alreadySent('task_due', 'tasks', task.id)) continue;
     const target = resolveNotifyTarget(task.assigned_to);
-    await notify(target, 'Task due', task.title);
-    logSent('task_due', 'tasks', task.id);
+    try {
+      await notify(target, 'Task due', task.title);
+      logSent('task_due', 'tasks', task.id);
+    } catch (err) {
+      console.error(`[reminders] notification for task ${task.id} failed`, err);
+    }
   }
 }
 

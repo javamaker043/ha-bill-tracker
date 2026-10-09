@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import Modal from './Modal.jsx';
 import { formatCurrency } from '../lib/format.js';
+import { todayISO } from '../lib/dueDate.js';
 
 const OTHER_SOURCE = '__other__';
 
 export default function MarkPaidModal({ bill, members, paychecks, onClose, onConfirm }) {
   const [amount, setAmount] = useState(bill.amount);
-  const [paidDate, setPaidDate] = useState(new Date().toISOString().slice(0, 10));
+  const [paidDate, setPaidDate] = useState(todayISO());
   const [paidBy, setPaidBy] = useState('');
   const [statementBalance, setStatementBalance] = useState(bill.current_balance ?? '');
   const [paycheckChoice, setPaycheckChoice] = useState('');
@@ -59,6 +60,7 @@ export default function MarkPaidModal({ bill, members, paychecks, onClose, onCon
           <input
             required
             type="date"
+            max={todayISO()}
             value={paidDate}
             onChange={(e) => setPaidDate(e.target.value)}
             className="w-full rounded-lg border border-white/10 bg-surface-muted px-3 py-2 text-sm outline-none focus:border-accent"
@@ -100,7 +102,7 @@ export default function MarkPaidModal({ bill, members, paychecks, onClose, onCon
               </option>
               {(paychecks || []).map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.pay_date} ({formatCurrency(p.expected_amount)})
+                  {p.pay_date} ({formatCurrency(p.available ?? p.expected_amount)})
                 </option>
               ))}
               <option value={OTHER_SOURCE}>Paid from another source (not a tracked paycheck)</option>

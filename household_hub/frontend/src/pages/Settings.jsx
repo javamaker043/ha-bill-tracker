@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Trash2, ShieldCheck, ShieldOff, Ban, RotateCcw } from 'lucide-react';
+import { Plus, ShieldCheck, ShieldOff, Ban, RotateCcw, Download } from 'lucide-react';
 import { api } from '../lib/api.js';
 import { Card } from '../components/Card.jsx';
+import ConfirmDeleteButton from '../components/ConfirmDeleteButton.jsx';
 import BulkImportBills from '../components/BulkImportBills.jsx';
 
 export default function Settings() {
@@ -122,9 +123,7 @@ export default function Settings() {
                     </button>
                   </>
                 )}
-                <button onClick={() => removeMember(m.id)} className="text-slate-500 hover:text-rose-400 p-1">
-                  <Trash2 size={16} />
-                </button>
+                <ConfirmDeleteButton title="Remove member" onConfirm={() => removeMember(m.id)} />
               </div>
             </div>
           ))}
@@ -171,9 +170,7 @@ export default function Settings() {
                   <input type="checkbox" checked={Boolean(c.is_debt)} onChange={() => toggleCategoryDebt(c)} />
                   Loan / credit category
                 </label>
-                <button onClick={() => removeCategory(c.id)} className="text-slate-500 hover:text-rose-400">
-                  <Trash2 size={14} />
-                </button>
+                <ConfirmDeleteButton title="Delete category" onConfirm={() => removeCategory(c.id)} />
               </div>
             </div>
           ))}
@@ -195,6 +192,31 @@ export default function Settings() {
       <Card>
         <h3 className="mb-2 text-sm font-semibold text-slate-200">Bulk import bills</h3>
         <BulkImportBills onImported={refresh} />
+      </Card>
+
+      <Card>
+        <h3 className="mb-1 text-sm font-semibold text-slate-200">Export data</h3>
+        <p className="mb-4 text-xs text-slate-500">
+          Download your bills or full payment history as CSV (opens in Excel, Numbers, or Google Sheets) --
+          for taxes, disputes, or just a backup outside the add-on. Some in-app browsers (e.g. the Home
+          Assistant mobile app) block downloads; if nothing happens, open Household Hub in a regular browser.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <a
+            href="api/export/bills.csv"
+            download
+            className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm font-medium hover:bg-white/5"
+          >
+            <Download size={14} /> Bills (CSV)
+          </a>
+          <a
+            href="api/export/payments.csv"
+            download
+            className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm font-medium hover:bg-white/5"
+          >
+            <Download size={14} /> Payment history (CSV)
+          </a>
+        </div>
       </Card>
 
       <Card>
