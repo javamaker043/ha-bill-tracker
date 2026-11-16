@@ -223,7 +223,10 @@ export default function MonarchImport() {
         <>
           <p className="text-sm text-slate-300">
             Snapshot from <strong>{preview.taken_at}</strong>: {preview.accounts.length} account{preview.accounts.length === 1 ? '' : 's'},{' '}
-            {preview.income.streams.length} income stream{preview.income.streams.length === 1 ? '' : 's'}. Nothing has changed yet.
+            {preview.income.streams.length} income stream{preview.income.streams.length === 1 ? '' : 's'},{' '}
+            {preview.extras.recurring_expenses} recurring expense{preview.extras.recurring_expenses === 1 ? '' : 's'}, and{' '}
+            {preview.extras.transactions} transaction{preview.extras.transactions === 1 ? '' : 's'} (these feed{' '}
+            <em>Monarch Review</em> after you apply). Nothing has changed yet.
           </p>
 
           {preview.warnings.length > 0 && (
@@ -382,6 +385,7 @@ export default function MonarchImport() {
             <li>{result.income_set ? 'Monthly income updated' : 'Monthly income unchanged'}</li>
           </ul>
           <div className="mt-4 flex flex-wrap gap-2 text-sm">
+            <Link to="/monarch-review" className="rounded-lg bg-accent px-3 py-1.5 font-medium hover:bg-accent-soft">Review payments &amp; recurring bills</Link>
             <Link to="/debt-management" className="rounded-lg border border-white/10 px-3 py-1.5 hover:bg-white/5">Debt Management</Link>
             <Link to="/budget" className="rounded-lg border border-white/10 px-3 py-1.5 hover:bg-white/5">Monthly Budget</Link>
             <Link to="/bills" className="rounded-lg border border-white/10 px-3 py-1.5 hover:bg-white/5">Bills</Link>

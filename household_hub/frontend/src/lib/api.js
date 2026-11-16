@@ -77,6 +77,14 @@ export const api = {
     status: () => request('/monarch/status'),
     preview: (snapshot) => request('/monarch/preview', { method: 'POST', body: JSON.stringify({ snapshot }) }),
     apply: (data) => request('/monarch/apply', { method: 'POST', body: JSON.stringify(data) }),
+    suggestions: () => request('/monarch/suggestions'),
+    applySuggestions: (items) =>
+      request('/monarch/suggestions/apply', { method: 'POST', body: JSON.stringify({ items }) }),
+    dismissSuggestion: (transaction_id) =>
+      request('/monarch/suggestions/dismiss', { method: 'POST', body: JSON.stringify({ transaction_id }) }),
+    reconcile: () => request('/monarch/reconcile'),
+    applyReconcile: (actions) =>
+      request('/monarch/reconcile/apply', { method: 'POST', body: JSON.stringify({ actions }) }),
   },
   settings: {
     get: () => request('/settings'),

@@ -134,6 +134,15 @@ CREATE TABLE IF NOT EXISTS monarch_snapshots (
   payload TEXT NOT NULL
 );
 
+-- Things the user chose to ignore in the Monarch review (a detected payment, or
+-- a recurring stream), so they don't keep coming back.
+CREATE TABLE IF NOT EXISTS monarch_dismissed (
+  kind TEXT NOT NULL,          -- transaction | stream
+  ref TEXT NOT NULL,           -- Monarch transaction id or stream id
+  dismissed_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (kind, ref)
+);
+
 CREATE INDEX IF NOT EXISTS idx_bills_due_date ON bills(due_date);
 CREATE INDEX IF NOT EXISTS idx_paychecks_pay_date ON paychecks(pay_date);
 CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);

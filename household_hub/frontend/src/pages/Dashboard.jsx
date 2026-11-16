@@ -20,10 +20,15 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [payingBill, setPayingBill] = useState(null);
   const [catchUpBill, setCatchUpBill] = useState(null);
+  const [monarchCount, setMonarchCount] = useState(0);
 
   const refresh = () => {
-    Promise.all([api.bills.list(), api.tasks.list(), api.members.list(), api.paychecks.list()])
-      .then(([b, t, m, p]) => {
+    Promise.all([
+      api.bills.list(), api.tasks.list(), api.members.list(), api.paychecks.list(),
+      api.monarch.suggestions().catch(() => null),
+    ])
+      .then(([b, t, m, p, sg]) => {
+        setMonarchCount(sg?.suggestions?.length || 0);
         setBills(b);
         // Open = anything not done, so tasks someone has started (in
         // progress) don't vanish from the overview.
@@ -94,6 +99,19 @@ export default function Dashboard() {
         <h2 className="text-2xl font-semibold">Overview</h2>
         <p className="text-sm text-slate-400">What needs attention across the household.</p>
       </div>
+
+      {monarchCount > 0 && (
+        <Link
+          to="/monarch-review"
+          className="flex items-center justify-between rounded-xl2 border border-accent/30 bg-accent/10 px-4 py-3 text-sm hover:bg-accent/15"
+        >
+          <span>
+            <strong>{monarchCount}</strong> payment{monarchCount === 1 ? '' : 's'} in Monarch look like bills you haven't
+            logged here.
+          </span>
+          <span className="text-accent-soft">Review →</span>
+        </Link>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard

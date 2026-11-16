@@ -1,7 +1,8 @@
 # Monarch Money integration: review and recommendations
 
 Status: **P1 implemented in 0.6.0** (snapshot import, Monarch-sourced income suggestions, debt balance/APR
-syncing). How to use it: [monarch-snapshot-import.md](monarch-snapshot-import.md). P2 and later remain proposals.
+syncing) and **P2 in 0.7.0** (suggested payments from Monarch transactions, recurring-bill reconciliation).
+How to use them: [monarch-snapshot-import.md](monarch-snapshot-import.md). P3 and later remain proposals.
 The review itself changed nothing in Monarch.
 
 **How this was reviewed.** The Monarch MCP connection was exercised with *read-only* calls only (recurring
@@ -187,12 +188,12 @@ what will change in Monarch, never a bulk or background operation.
 | 0 | Clean up Monarch data (5.1) and verify HA entities | S, mostly manual |
 | 1 | Snapshot schema + importer screen; income suggestions (3 sources) | M, **done (0.6.0)** |
 | 2 | Debt account linking + balance/APR/payment sync; optional balance on pay | M, **done (0.6.0)** |
-| 3 | Payment-matching inbox; recurring reconciliation | M-L |
-| 4 | Plan-vs-actual overlay, cash-flow trend, debt-plan cross-check | M |
+| 3 | Payment-matching inbox; recurring reconciliation | M-L, **done (0.7.0)** |
+| 4 | Plan-vs-actual overlay, cash-flow trend, debt-plan cross-check | M (the HA budget sensors below could feed this automatically) |
 | 5 | Optional automation (HA entities, scheduled snapshots) | M, only if wanted |
 
 ## 9. Open questions
-- What does the Monarch integration in Home Assistant expose? (Gates option B.)
+- ~~What does the Monarch integration in Home Assistant expose?~~ **Answered (checked read-only via the HA connection): it exposes per-category budget sensors only** (planned / actual / remaining for each budget category, roughly 190 entities) plus an update entity: no accounts, balances, recurring streams, or transactions. So option B cannot replace the snapshot for P1/P2, but it could feed the P3 plan-vs-actual overlay automatically.
 - Which income number should be the default for planning: current recurring streams, or the trailing average?
 - Should accounts held by only one household member be filterable per member in the Hub?
 - Are the two hidden institutions needed in the debt view?
