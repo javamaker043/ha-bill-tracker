@@ -67,7 +67,7 @@ debt categories).
     "budgeted_paychecks": 4200
   },
   "accounts": [
-    { "id": "123", "name": "Example Rewards Card (...1234)", "type": "Credit Card", "balance": -1500.25, "apr": 24.99, "interest_rate": null, "minimum_payment": 45 }
+    { "id": "123", "name": "Example Rewards Card (...1234)", "type": "Credit Card", "institution": "Example Bank", "balance": -1500.25, "apr": 24.99, "interest_rate": null, "minimum_payment": 45 }
   ],
   "recurring_expenses": [
     { "id": "s1", "name": "Phone", "merchant": "Example Wireless", "frequency": "monthly", "amount": -95, "category": "Phone", "last_paid_date": "2026-11-03", "next_date": "2026-12-03" }
@@ -123,7 +123,7 @@ Build a Household Hub snapshot and reply with ONLY one JSON code block (no other
 
 How to fill it in:
 - taken_at: today's date, YYYY-MM-DD.
-- accounts: every liability account (credit cards, student/auto/other loans, mortgage). id = Monarch's account id as a string; name and type as Monarch reports them; balance EXACTLY as reported (debts are negative); apr for credit cards, interest_rate for loans; minimum_payment. Use null for anything Monarch doesn't have -- never guess.
+- accounts: every liability account (credit cards, student/auto/other loans, mortgage). id = Monarch's account id as a string; name, type and institution as Monarch reports them; balance EXACTLY as reported (debts are negative); apr for credit cards, interest_rate for loans; minimum_payment. Use null for anything Monarch doesn't have -- never guess.
 - income.recurring: GetRecurring with include_liabilities=false; every recurring INCOME stream: name, frequency (as Monarch reports it), amount (positive), last_paid_date, next_date.
 - income.paycheck_avg_monthly: GetCashFlow over the last 6 complete months, grouped by month, income category "Paychecks" only; the average per month (null if unavailable).
 - income.budgeted_paychecks: GetBudget for the current month; the budgeted amount for "Paychecks" (null if none).

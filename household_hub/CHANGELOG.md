@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.7.1
+
+Matching fixes found by running Monarch Review against a real household's data.
+
+- **Suggested payments no longer mistake purchases for debt payments.** A
+  merchant like "Apple" (subscription charges on the Apple Card) was being
+  matched to the Apple Card *bill*, using up its payment slot so the real
+  card payment was missed. Debt bills now only accept payment-type
+  categories (credit card payment, loan repayment, mortgage, auto payment,
+  student loan), and plain bills never accept a credit-card-payment.
+- **Linked accounts are recognised by institution and type.** The snapshot
+  can now include each account's `institution` (optional; the import prompt
+  asks for it). A bill linked to a Monarch account matches payments to that
+  institution ("Capital One" paying an auto loan whose bill is called
+  "Toyota"), and the payment category must fit the account type (an auto
+  payment can't pay a credit card and vice versa).
+- A bill whose name matches exactly can be a little off in price (up to 15%)
+  and still be suggested (as "likely"), instead of being silently missed.
+- **Recurring bills review:** "Not seen in Monarch" no longer lists bills
+  that do have a recent transaction under their name (it only looked at
+  recurring streams before), and new-bill category suggestions map Monarch's
+  categories onto yours (phone/internet/electric -> Utilities,
+  subscriptions/entertainment -> Subscriptions, loan repayment ->
+  Short-Term Loans, ...) instead of always "Other".
+- No schema changes; existing imports keep working (re-import once to add
+  institutions).
+
 ## 0.7.0
 
 - **Monarch Review** page (P2 of the Monarch integration plan), fed by the
