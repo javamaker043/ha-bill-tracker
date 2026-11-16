@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.7.0
+
+- **Monarch Review** page (P2 of the Monarch integration plan), fed by the
+  same pasted snapshot (the prompt now also asks for recurring expenses and
+  ~45 days of bill-like transactions; older snapshots still import).
+  - **Suggested payments:** Monarch transactions that look like payments of
+    your unpaid bills (merchant/payee overlap + amount; credit cards and loans
+    accept larger-than-minimum payments). Strong matches start ticked; change
+    the target bill if a guess is wrong; Dismiss hides one for good. Accepting
+    logs the payment exactly like Mark paid, with Monarch's date and amount.
+    Each payment settles one cycle, oldest first. Transactions you already
+    logged by hand are skipped, a Monarch transaction can never be logged
+    twice, and undoing a payment makes it reappear as a suggestion. The
+    Dashboard shows a banner when payments are waiting.
+  - **Recurring bills:** price changes (Monarch's amount differs from yours by
+    more than ~2%), recurring expenses in Monarch with no bill here (add them
+    with name/amount/due date/category confirmed; biweekly and twice-monthly
+    streams become a monthly amount), bills here that Monarch doesn't see
+    (possibly cancelled), and stale streams kept out of the way. Matches are
+    remembered by stream id so renames don't break them.
+- Backend: `/api/monarch/suggestions[/apply|/dismiss]` and
+  `/api/monarch/reconcile[/apply]`; new `bill_payments.monarch_transaction_id`
+  (unique), `bills.monarch_stream_id`, `monarch_dismissed` table (additive
+  migrations, verified against an old-schema database).
+- Refactor: "mark paid" now lives in one shared payment service used by both
+  the Mark paid route and accepted Monarch payments, so they can't drift.
+- Docs: how-to, format, and prompt updated; integration plan marks P2 done and
+  records that Home Assistant's Monarch integration only exposes budget sensors.
+
 ## 0.6.0
 
 - **Monarch Import** page (P1 of the Monarch integration plan). Paste a

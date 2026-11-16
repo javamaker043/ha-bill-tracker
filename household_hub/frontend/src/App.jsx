@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, NavLink, useLocation, Link } from 'react-router-dom';
-import { LayoutDashboard, Receipt, CalendarDays, FolderKanban, Settings, Wallet, TrendingDown, Menu, X, AlertTriangle, PiggyBank, Landmark } from 'lucide-react';
+import { LayoutDashboard, Receipt, CalendarDays, FolderKanban, Settings, Wallet, TrendingDown, Menu, X, AlertTriangle, PiggyBank, Landmark, ListChecks } from 'lucide-react';
 
 import Dashboard from './pages/Dashboard.jsx';
 import Bills from './pages/Bills.jsx';
@@ -8,6 +8,7 @@ import BillCalendar from './pages/BillCalendar.jsx';
 import PaymentPlans from './pages/PaymentPlans.jsx';
 import MonthlyBudget from './pages/MonthlyBudget.jsx';
 import MonarchImport from './pages/MonarchImport.jsx';
+import MonarchReview from './pages/MonarchReview.jsx';
 import DebtManagement from './pages/DebtManagement.jsx';
 import Projects from './pages/Projects.jsx';
 import ProjectDetail from './pages/ProjectDetail.jsx';
@@ -22,6 +23,7 @@ const navItems = [
   { to: '/payment-plans', label: 'Payment Plans', icon: Wallet },
   { to: '/debt-management', label: 'Debt Management', icon: TrendingDown },
   { to: '/monarch', label: 'Monarch Import', icon: Landmark },
+  { to: '/monarch-review', label: 'Monarch Review', icon: ListChecks },
   { to: '/projects', label: 'Projects', icon: FolderKanban },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
@@ -129,6 +131,7 @@ export default function App() {
               <Route path="/calendar" element={<BillCalendar />} />
               <Route path="/budget" element={<MonthlyBudget />} />
               <Route path="/monarch" element={<MonarchImport />} />
+              <Route path="/monarch-review" element={<MonarchReview />} />
               <Route path="/payment-plans" element={<PaymentPlans />} />
               <Route path="/debt-management" element={<DebtManagement />} />
               <Route path="/projects" element={<Projects />} />

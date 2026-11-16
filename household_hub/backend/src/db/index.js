@@ -72,6 +72,11 @@ ensureColumn('bills', 'reduce_target', 'REAL');
 // current_balance was last refreshed from a snapshot.
 ensureColumn('bills', 'monarch_account_id', 'TEXT');
 ensureColumn('bills', 'balance_as_of', 'TEXT');
+// The Monarch recurring stream a bill was matched to (remembered so a rename
+// on either side doesn't break the match), and the Monarch transaction a
+// payment was created from (so it can never be logged twice).
+ensureColumn('bills', 'monarch_stream_id', 'TEXT');
+ensureColumn('bill_payments', 'monarch_transaction_id', 'TEXT');
 // What a paycheck actually paid, vs. expected_amount which is the plan.
 ensureColumn('paychecks', 'actual_amount', 'REAL');
 
@@ -79,6 +84,7 @@ ensureColumn('paychecks', 'actual_amount', 'REAL');
 // are guaranteed to exist (see the note at the bottom of schema.sql).
 db.exec('CREATE INDEX IF NOT EXISTS idx_bills_paycheck ON bills(paycheck_id)');
 db.exec('CREATE INDEX IF NOT EXISTS idx_bills_monarch_account ON bills(monarch_account_id)');
+db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_monarch_txn ON bill_payments(monarch_transaction_id) WHERE monarch_transaction_id IS NOT NULL');
 // members.ha_user_id has an inline UNIQUE on brand-new databases; a column
 // added later via ALTER TABLE can't declare UNIQUE inline, so this index
 // gives migrated databases the same guarantee. Partial (WHERE ... IS NOT

@@ -5,6 +5,9 @@ import { setSetting } from '../db/settingsStore.js';
 import {
   validateSnapshot, computeIncome, matchAccounts, amountOwed, categoryForAccountType,
 } from '../services/monarchSnapshot.js';
+import { suggestPayments, reconcileStreams } from '../services/monarchMatching.js';
+import { recordPayment } from '../services/payments.js';
+import { localToday } from '../services/dateUtil.js';
 
 const router = Router();
 
@@ -86,6 +89,7 @@ router.post('/preview', (req, res) => {
   res.json({
     taken_at: snapshot.taken_at,
     income: computeIncome(snapshot),
+    extras: { recurring_expenses: snapshot.recurring_expenses.length, transactions: snapshot.transactions.length },
     accounts,
     bills: bills
       .filter((b) => b.recurrence !== 'once')
@@ -193,6 +197,148 @@ router.post('/apply', (req, res) => {
     db.prepare('DELETE FROM monarch_snapshots WHERE id NOT IN (SELECT id FROM monarch_snapshots ORDER BY id DESC LIMIT 5)').run();
   })();
 
+  res.json(result);
+});
+
+// ------------------------------------------------- suggested payments (P2) ---
+
+const dismissedSet = (kind) =>
+  new Set(db.prepare('SELECT ref FROM monarch_dismissed WHERE kind = ?').all(kind).map((r) => r.ref));
+
+// Recent Monarch transactions that look like payments of bills here. Computed
+// fresh from the latest snapshot every time, so it always reflects what has
+// already been logged since.
+router.get('/suggestions', (_req, res) => {
+  const last = lastSnapshot();
+  if (!last) return res.json({ taken_at: null, suggestions: [], already_logged: 0 });
+  const bills = db.prepare(BILLS_WITH_CATEGORY_SELECT).all();
+  const loggedTxnIds = new Set(
+    db.prepare('SELECT monarch_transaction_id AS id FROM bill_payments WHERE monarch_transaction_id IS NOT NULL').all().map((r) => r.id)
+  );
+  const existingPayments = db.prepare('SELECT bill_id, amount_paid, paid_date FROM bill_payments').all();
+  const out = suggestPayments(last.snapshot, bills, {
+    loggedTxnIds, existingPayments, dismissed: dismissedSet('transaction'), today: localToday(),
+  });
+  res.json({ taken_at: last.snapshot.taken_at, ...out });
+});
+
+// Log the payments the user accepted. Each goes through the same recordPayment
+// path as "Mark paid", oldest first so a bill's due date advances in order;
+// one failing item doesn't stop the rest.
+router.post('/suggestions/apply', (req, res) => {
+  const last = lastSnapshot();
+  if (!last) return res.status(400).json({ error: 'Import a Monarch snapshot first.' });
+  const items = Array.isArray(req.body?.items) ? req.body.items : [];
+  const txById = new Map((last.snapshot.transactions || []).map((t) => [t.id, t]));
+
+  const resolved = [];
+  const failed = [];
+  for (const it of items) {
+    const tx = txById.get(String(it?.transaction_id));
+    if (!tx) { failed.push({ transaction_id: it?.transaction_id, error: 'That transaction is not in the latest snapshot.' }); continue; }
+    resolved.push({ tx, bill_id: it.bill_id, paid_by: it.paid_by });
+  }
+  resolved.sort((a, b) => a.tx.date.localeCompare(b.tx.date));
+
+  let applied = 0;
+  for (const r of resolved) {
+    const bill = db.prepare('SELECT * FROM bills WHERE id = ?').get(r.bill_id);
+    if (!bill) { failed.push({ transaction_id: r.tx.id, error: 'That bill no longer exists.' }); continue; }
+    const result = recordPayment(bill, {
+      amount_paid: r.tx.amount,
+      paid_date: r.tx.date,
+      paid_by: r.paid_by || null,
+      source: r.tx.account ? `Monarch: ${r.tx.account}` : 'Monarch',
+      monarch_transaction_id: r.tx.id,
+    });
+    if (result.error) failed.push({ transaction_id: r.tx.id, error: result.error.message });
+    else applied++;
+  }
+  res.json({ applied, failed });
+});
+
+router.post('/suggestions/dismiss', (req, res) => {
+  const id = req.body?.transaction_id;
+  if (id == null || String(id).trim() === '') return res.status(400).json({ error: 'transaction_id is required' });
+  db.prepare("INSERT OR IGNORE INTO monarch_dismissed (kind, ref) VALUES ('transaction', ?)").run(String(id));
+  res.json({ ok: true });
+});
+
+// ---------------------------------------- recurring bills reconciliation (P2) ---
+
+router.get('/reconcile', (_req, res) => {
+  const last = lastSnapshot();
+  if (!last) return res.json({ taken_at: null, matched: [], new: [], stale: [], unseen: [] });
+  const bills = db.prepare(BILLS_WITH_CATEGORY_SELECT).all();
+  const categories = db.prepare('SELECT name FROM categories').all();
+  const out = reconcileStreams(last.snapshot, bills, { dismissed: dismissedSet('stream'), categories });
+  res.json({ taken_at: last.snapshot.taken_at, ...out });
+});
+
+router.post('/reconcile/apply', (req, res) => {
+  const actions = Array.isArray(req.body?.actions) ? req.body.actions : [];
+  const plan = [];
+  for (const a of actions) {
+    if (a.type === 'add') {
+      const name = String(a.name ?? '').trim();
+      const amount = Number(a.amount);
+      if (!name) return res.status(400).json({ error: 'A name is required to add a bill.' });
+      if (!isIso(a.due_date)) return res.status(400).json({ error: `A valid due date is required to add "${name}".` });
+      if (!Number.isFinite(amount) || amount < 0) return res.status(400).json({ error: `Invalid amount for "${name}".` });
+      if (!RECURRENCES.includes(a.recurrence)) return res.status(400).json({ error: `Invalid recurrence for "${name}".` });
+      plan.push({ ...a, name, amount });
+    } else if (a.type === 'update_amount' || a.type === 'link') {
+      const bill = db.prepare('SELECT * FROM bills WHERE id = ?').get(a.bill_id);
+      if (!bill) return res.status(400).json({ error: `Bill ${a.bill_id} no longer exists.` });
+      if (a.type === 'update_amount') {
+        const amount = Number(a.amount);
+        if (!Number.isFinite(amount) || amount < 0) return res.status(400).json({ error: `Invalid amount for "${bill.name}".` });
+        plan.push({ ...a, amount });
+      } else plan.push(a);
+    } else if (a.type === 'ignore') {
+      plan.push(a);
+    } else {
+      return res.status(400).json({ error: `Unknown action ${JSON.stringify(a.type)}.` });
+    }
+  }
+  for (const a of plan) {
+    if (a.stream_id == null || String(a.stream_id) === '') return res.status(400).json({ error: 'stream_id is required.' });
+  }
+
+  const result = { added: 0, updated: 0, linked: 0, ignored: 0 };
+  db.transaction(() => {
+    for (const a of plan) {
+      const streamId = String(a.stream_id);
+      if (a.type === 'ignore') {
+        db.prepare("INSERT OR IGNORE INTO monarch_dismissed (kind, ref) VALUES ('stream', ?)").run(streamId);
+        result.ignored++;
+        continue;
+      }
+      let billId = a.bill_id;
+      if (a.type === 'add') {
+        const category = String(a.category || 'Other').trim() || 'Other';
+        db.prepare('INSERT OR IGNORE INTO categories (name) VALUES (?)').run(category);
+        const info = db
+          .prepare(
+            `INSERT INTO bills (name, amount, category, recurrence, due_date, due_day, monarch_stream_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`
+          )
+          .run(a.name, a.amount, category, a.recurrence, a.due_date, Number(a.due_date.slice(8, 10)), streamId);
+        billId = info.lastInsertRowid;
+        result.added++;
+        continue;
+      }
+      // One stream maps to one bill.
+      db.prepare('UPDATE bills SET monarch_stream_id = NULL WHERE monarch_stream_id = ? AND id != ?').run(streamId, billId);
+      db.prepare('UPDATE bills SET monarch_stream_id = ? WHERE id = ?').run(streamId, billId);
+      if (a.type === 'update_amount') {
+        db.prepare("UPDATE bills SET amount = ?, updated_at = datetime('now') WHERE id = ?").run(a.amount, billId);
+        result.updated++;
+      } else {
+        result.linked++;
+      }
+    }
+  })();
   res.json(result);
 });
 

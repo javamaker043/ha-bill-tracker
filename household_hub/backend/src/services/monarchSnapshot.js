@@ -67,6 +67,48 @@ export function validateSnapshot(raw) {
     };
   });
 
+  // Optional sections used by the payment-detection and recurring-bill review.
+  const expensesIn = Array.isArray(raw.recurring_expenses) ? raw.recurring_expenses : [];
+  if (expensesIn.length > 200) errors.push('Too many recurring expenses (max 200).');
+  const recurring_expenses = expensesIn.slice(0, 200).map((s, i) => {
+    const amount = Number(s?.amount);
+    if (!s || typeof s.name !== 'string' || !s.name.trim()) errors.push(`recurring_expenses[${i}]: name is required.`);
+    if (!Number.isFinite(amount)) errors.push(`recurring_expenses[${i}]: amount must be a number.`);
+    if (s?.last_paid_date != null && !isIso(s.last_paid_date)) errors.push(`recurring_expenses[${i}]: last_paid_date must be YYYY-MM-DD.`);
+    return {
+      id: s?.id == null || s.id === '' ? `idx:${i}:${String(s?.name ?? '').trim().toLowerCase()}` : String(s.id),
+      name: String(s?.name ?? '').trim(),
+      merchant: String(s?.merchant ?? '').trim(),
+      frequency: String(s?.frequency ?? '').trim(),
+      amount: Math.abs(amount),
+      category: String(s?.category ?? '').trim(),
+      last_paid_date: s?.last_paid_date ?? null,
+      next_date: isIso(s?.next_date) ? s.next_date : null,
+    };
+  });
+
+  const txIn = Array.isArray(raw.transactions) ? raw.transactions : [];
+  if (txIn.length > 300) errors.push('Too many transactions (max 300).');
+  const txSeen = new Set();
+  const transactions = txIn.slice(0, 300).map((t, i) => {
+    const id = t?.id == null ? '' : String(t.id).trim();
+    if (!id) errors.push(`transactions[${i}]: id is required.`);
+    if (id && txSeen.has(id)) errors.push(`transactions[${i}]: duplicate id ${id}.`);
+    txSeen.add(id);
+    if (!isIso(t?.date)) errors.push(`transactions[${i}]: date must be YYYY-MM-DD.`);
+    const amount = Number(t?.amount);
+    if (!Number.isFinite(amount)) errors.push(`transactions[${i}]: amount must be a number.`);
+    if (!t || typeof t.merchant !== 'string' || !t.merchant.trim()) errors.push(`transactions[${i}]: merchant is required.`);
+    return {
+      id,
+      date: t?.date,
+      amount: Math.abs(amount),
+      merchant: String(t?.merchant ?? '').trim(),
+      category: String(t?.category ?? '').trim(),
+      account: String(t?.account ?? '').trim(),
+    };
+  });
+
   for (const f of ['paycheck_avg_monthly', 'budgeted_paychecks']) {
     const v = numOrNull(income[f]);
     if (v !== null && (!isNum(v) || v < 0)) errors.push(`income.${f} must be a non-negative number.`);
@@ -81,6 +123,8 @@ export function validateSnapshot(raw) {
       budgeted_paychecks: numOrNull(income.budgeted_paychecks),
     },
     accounts,
+    recurring_expenses,
+    transactions,
   };
   return { snapshot: errors.length ? null : snapshot, errors };
 }
@@ -100,7 +144,7 @@ export function monthlyFactor(frequency) {
   return null;
 }
 
-const daysBetween = (a, b) => Math.round((new Date(a + 'T00:00:00Z') - new Date(b + 'T00:00:00Z')) / 86400000);
+export const daysBetween = (a, b) => Math.round((new Date(a + 'T00:00:00Z') - new Date(b + 'T00:00:00Z')) / 86400000);
 export const ACTIVE_WINDOW_DAYS = 75;
 
 // The three income figures a snapshot can support. A stream is "active" only
@@ -147,7 +191,7 @@ export function categoryForAccountType(type) {
 }
 
 const STOP = new Set(['card', 'credit', 'account', 'loan', 'the', 'my', 'and', 'acct', 'payment', 'bill']);
-const tokens = (s) =>
+export const tokens = (s) =>
   String(s || '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, ' ')
