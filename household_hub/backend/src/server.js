@@ -13,6 +13,7 @@ import notifyRouter from './routes/notify.js';
 import categoriesRouter from './routes/categories.js';
 import paychecksRouter from './routes/paychecks.js';
 import exportRouter from './routes/export.js';
+import settingsRouter from './routes/settings.js';
 import { startReminderScheduler } from './services/reminders.js';
 import { importMembersOnFirstBoot } from './services/bootstrap.js';
 import db from './db/index.js';
@@ -35,6 +36,7 @@ app.use('/api/notify', notifyRouter);
 app.use('/api/categories', categoriesRouter);
 app.use('/api/paychecks', paychecksRouter);
 app.use('/api/export', exportRouter);
+app.use('/api/settings', settingsRouter);
 
 // Unknown API paths get a JSON 404 instead of falling through to the SPA's
 // index.html below (which the frontend would then fail to parse as JSON).

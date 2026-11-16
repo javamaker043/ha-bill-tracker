@@ -65,6 +65,9 @@ ensureColumn('bills', 'credit_limit', 'REAL');
 // bill that's clamped to Feb 28 comes back to the 31st in March instead of
 // drifting to the 28th forever (see services/recurrence.js).
 ensureColumn('bills', 'due_day', 'INTEGER');
+// Monthly Budget "inventory": the per-payment amount a bill could be reduced
+// to (0 = cancel it). NULL = not flagged for reduction.
+ensureColumn('bills', 'reduce_target', 'REAL');
 // What a paycheck actually paid, vs. expected_amount which is the plan.
 ensureColumn('paychecks', 'actual_amount', 'REAL');
 

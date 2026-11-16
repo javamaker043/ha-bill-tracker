@@ -10,18 +10,7 @@ import CatchUpModal from '../components/CatchUpModal.jsx';
 import { formatCurrency } from '../lib/format.js';
 import { daysUntilDue, todayISO } from '../lib/dueDate.js';
 import { cyclesOwed as countCyclesOwed } from '../lib/recurrence.js';
-
-// A 'once' bill has no ongoing monthly obligation to speak of; weekly and
-// yearly recurring bills do, but aren't directly comparable to a monthly
-// one until normalized onto the same monthly basis -- otherwise a weekly
-// bill's real cash-flow impact (~4.3x its amount per month) is invisible
-// next to monthly bills in the same total.
-function monthlyEquivalent(bill) {
-  if (bill.recurrence === 'weekly') return (Number(bill.amount) || 0) * (52 / 12);
-  if (bill.recurrence === 'yearly') return (Number(bill.amount) || 0) / 12;
-  if (bill.recurrence === 'monthly') return Number(bill.amount) || 0;
-  return 0;
-}
+import { monthlyEquivalent } from '../lib/budget.js';
 
 export default function Dashboard() {
   const [bills, setBills] = useState([]);
