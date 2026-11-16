@@ -68,12 +68,17 @@ ensureColumn('bills', 'due_day', 'INTEGER');
 // Monthly Budget "inventory": the per-payment amount a bill could be reduced
 // to (0 = cancel it). NULL = not flagged for reduction.
 ensureColumn('bills', 'reduce_target', 'REAL');
+// Monarch link: the Monarch account a debt bill mirrors, and the date its
+// current_balance was last refreshed from a snapshot.
+ensureColumn('bills', 'monarch_account_id', 'TEXT');
+ensureColumn('bills', 'balance_as_of', 'TEXT');
 // What a paycheck actually paid, vs. expected_amount which is the plan.
 ensureColumn('paychecks', 'actual_amount', 'REAL');
 
 // Created here rather than in schema.sql so they only run once the columns
 // are guaranteed to exist (see the note at the bottom of schema.sql).
 db.exec('CREATE INDEX IF NOT EXISTS idx_bills_paycheck ON bills(paycheck_id)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_bills_monarch_account ON bills(monarch_account_id)');
 // members.ha_user_id has an inline UNIQUE on brand-new databases; a column
 // added later via ALTER TABLE can't declare UNIQUE inline, so this index
 // gives migrated databases the same guarantee. Partial (WHERE ... IS NOT

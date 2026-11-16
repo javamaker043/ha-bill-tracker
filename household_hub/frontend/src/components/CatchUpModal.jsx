@@ -22,13 +22,14 @@ export default function CatchUpModal({ bill, members, paychecks, onClose, onConf
     cycles.map((due_date, i) => ({ due_date, amount: bill.amount, paid_date: todayISO(), done: false, key: i }))
   );
   const [paidBy, setPaidBy] = useState('');
-  const [statementBalance, setStatementBalance] = useState(bill.current_balance ?? '');
+  const [statementBalance, setStatementBalance] = useState(bill.monarch_account_id ? '' : bill.current_balance ?? '');
   const [paycheckChoice, setPaycheckChoice] = useState('');
   const [sourceText, setSourceText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
   const balanceRequired = Boolean(bill.category_is_debt);
+  const linked = Boolean(bill.monarch_account_id); // balance syncs from Monarch, so typing it is optional
   const needsSource = !bill.paycheck_id;
   const doneCount = rows.filter((r) => r.done).length;
 
@@ -141,9 +142,11 @@ export default function CatchUpModal({ bill, members, paychecks, onClose, onConf
 
         {balanceRequired && (
           <label className="block">
-            <span className="mb-1 block text-xs font-medium text-slate-400">Current statement balance</span>
+            <span className="mb-1 block text-xs font-medium text-slate-400">
+              Current statement balance{linked ? ' (optional)' : ''}
+            </span>
             <input
-              required
+              required={!linked}
               type="number"
               step="0.01"
               value={statementBalance}

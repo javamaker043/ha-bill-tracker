@@ -73,6 +73,11 @@ export const api = {
     update: (id, data) => request(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id) => request(`/tasks/${id}`, { method: 'DELETE' }),
   },
+  monarch: {
+    status: () => request('/monarch/status'),
+    preview: (snapshot) => request('/monarch/preview', { method: 'POST', body: JSON.stringify({ snapshot }) }),
+    apply: (data) => request('/monarch/apply', { method: 'POST', body: JSON.stringify(data) }),
+  },
   settings: {
     get: () => request('/settings'),
     update: (data) => request('/settings', { method: 'PUT', body: JSON.stringify(data) }),

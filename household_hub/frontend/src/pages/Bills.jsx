@@ -114,7 +114,9 @@ export default function Bills() {
                 <div className="text-right">
                   <p className="text-sm font-semibold">{formatCurrency(b.amount)}</p>
                   {Boolean(b.category_is_debt) && b.current_balance != null && (
-                    <p className="text-xs text-slate-400">Bal {formatCurrency(b.current_balance)}</p>
+                    <p className="text-xs text-slate-400" title={b.balance_as_of ? `From Monarch, as of ${b.balance_as_of}` : undefined}>
+                      Bal {formatCurrency(b.current_balance)}{b.balance_as_of ? ` · ${b.balance_as_of}` : ''}
+                    </p>
                   )}
                 </div>
               </div>
@@ -165,6 +167,9 @@ export default function Bills() {
                   <td className="px-4 py-3">{formatCurrency(b.amount)}</td>
                   <td className="px-4 py-3 text-slate-400">
                     {b.category_is_debt ? (b.current_balance != null ? formatCurrency(b.current_balance) : '—') : ''}
+                    {Boolean(b.category_is_debt) && b.balance_as_of && (
+                      <span className="block text-[10px] text-slate-500" title="Synced from Monarch">as of {b.balance_as_of}</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">{b.due_date}</td>
                   <td className="px-4 py-3 capitalize text-slate-400">{b.recurrence}</td>

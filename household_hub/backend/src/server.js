@@ -14,6 +14,7 @@ import categoriesRouter from './routes/categories.js';
 import paychecksRouter from './routes/paychecks.js';
 import exportRouter from './routes/export.js';
 import settingsRouter from './routes/settings.js';
+import monarchRouter from './routes/monarch.js';
 import { startReminderScheduler } from './services/reminders.js';
 import { importMembersOnFirstBoot } from './services/bootstrap.js';
 import db from './db/index.js';
@@ -23,7 +24,7 @@ const app = express();
 const PORT = process.env.PORT || 8099;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 app.use(ingressContext);
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
@@ -37,6 +38,7 @@ app.use('/api/categories', categoriesRouter);
 app.use('/api/paychecks', paychecksRouter);
 app.use('/api/export', exportRouter);
 app.use('/api/settings', settingsRouter);
+app.use('/api/monarch', monarchRouter);
 
 // Unknown API paths get a JSON 404 instead of falling through to the SPA's
 // index.html below (which the frontend would then fail to parse as JSON).

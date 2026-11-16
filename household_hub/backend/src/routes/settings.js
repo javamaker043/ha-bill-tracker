@@ -1,32 +1,38 @@
 import { Router } from 'express';
-import db from '../db/index.js';
+import { getSetting, setSetting, deleteSetting } from '../db/settingsStore.js';
 
 const router = Router();
 
 function readSettings() {
-  const row = db.prepare("SELECT value FROM app_settings WHERE key = 'monthly_income'").get();
-  const income = row && row.value !== '' && row.value != null ? Number(row.value) : null;
-  return { monthly_income: Number.isFinite(income) ? income : null };
+  const raw = getSetting('monthly_income');
+  const income = raw !== null && raw !== '' ? Number(raw) : null;
+  return {
+    monthly_income: Number.isFinite(income) ? income : null,
+    // Where the income figure came from: 'manual' or a Monarch source.
+    income_source: getSetting('income_source'),
+  };
 }
 
 router.get('/', (_req, res) => {
   res.json(readSettings());
 });
 
-// monthly_income: average monthly take-home, or null/'' to clear it.
+// monthly_income: average monthly take-home, or null/'' to clear it. Typing a
+// number by hand marks the source as manual.
 router.put('/', (req, res) => {
   const { monthly_income } = req.body;
   if (monthly_income === undefined) return res.status(400).json({ error: 'monthly_income is required' });
   if (monthly_income === null || monthly_income === '') {
-    db.prepare("DELETE FROM app_settings WHERE key = 'monthly_income'").run();
+    deleteSetting('monthly_income');
+    deleteSetting('income_source');
   } else {
     const n = Number(monthly_income);
     if (!Number.isFinite(n) || n < 0) {
       return res.status(400).json({ error: 'monthly_income must be a non-negative number' });
     }
-    db.prepare(
-      "INSERT INTO app_settings (key, value) VALUES ('monthly_income', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
-    ).run(String(n));
+    setSetting('monthly_income', n);
+    const allowed = ['monarch_streams', 'monarch_average', 'monarch_budget'];
+    setSetting('income_source', allowed.includes(req.body.income_source) ? req.body.income_source : 'manual');
   }
   res.json(readSettings());
 });

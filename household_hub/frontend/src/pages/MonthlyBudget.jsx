@@ -15,6 +15,12 @@ const KIND_STYLE = {
   flexible: 'bg-amber-500/15 text-amber-300',
 };
 
+const MONARCH_SOURCE_LABEL = {
+  monarch_streams: 'active recurring pay streams',
+  monarch_average: '6-month average of paychecks',
+  monarch_budget: 'budgeted paychecks',
+};
+
 const pct = (part, whole) => (whole > 0 ? (part / whole) * 100 : null);
 const fmtPct = (n) => (n == null ? '—' : `${n.toFixed(n >= 10 ? 0 : 1)}%`);
 
@@ -22,6 +28,9 @@ export default function MonthlyBudget() {
   const [bills, setBills] = useState([]);
   const [paychecks, setPaychecks] = useState([]);
   const [income, setIncome] = useState(null);
+  const [incomeSource, setIncomeSource] = useState(null);
+  const [pendingSource, setPendingSource] = useState(null);
+  const [monarch, setMonarch] = useState(null);
   const [incomeInput, setIncomeInput] = useState('');
   const [editingIncome, setEditingIncome] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -29,10 +38,17 @@ export default function MonthlyBudget() {
   const [reducingId, setReducingId] = useState(null);
 
   const load = () =>
-    Promise.all([api.bills.list(), api.paychecks.list(), api.settings.get()])
-      .then(([b, p, s]) => {
+    Promise.all([
+      api.bills.list(),
+      api.paychecks.list(),
+      api.settings.get(),
+      api.monarch.status().catch(() => null),
+    ])
+      .then(([b, p, s, m]) => {
         setBills(b);
         setPaychecks(p);
+        setMonarch(m && m.last ? m : null);
+        setIncomeSource(s.income_source);
         setIncome(s.monthly_income);
         setIncomeInput(s.monthly_income == null ? '' : String(s.monthly_income));
       })
@@ -43,10 +59,11 @@ export default function MonthlyBudget() {
     load();
   }, []);
 
-  const saveIncome = async (value) => {
+  const saveIncome = async (value, source) => {
     setError(null);
     try {
-      const s = await api.settings.update({ monthly_income: value });
+      const s = await api.settings.update({ monthly_income: value, income_source: source });
+      setIncomeSource(s.income_source);
       setIncome(s.monthly_income);
       setIncomeInput(s.monthly_income == null ? '' : String(s.monthly_income));
       setEditingIncome(false);
@@ -160,6 +177,11 @@ export default function MonthlyBudget() {
                 {hasIncome ? formatCurrency(income) : <span className="text-slate-500">Not set</span>}
               </p>
             )}
+            {!editingIncome && hasIncome && incomeSource && (
+              <p className="text-xs text-slate-500">
+                {incomeSource === 'manual' ? 'Entered by hand' : `From Monarch: ${MONARCH_SOURCE_LABEL[incomeSource] || incomeSource}`}
+              </p>
+            )}
           </div>
           {!editingIncome && (
             <button
@@ -175,7 +197,7 @@ export default function MonthlyBudget() {
             className="mt-3 flex flex-wrap items-center gap-2"
             onSubmit={(e) => {
               e.preventDefault();
-              saveIncome(incomeInput === '' ? null : Number(incomeInput));
+              saveIncome(incomeInput === '' ? null : Number(incomeInput), pendingSource);
             }}
           >
             <input
@@ -184,7 +206,7 @@ export default function MonthlyBudget() {
               step="0.01"
               min="0"
               value={incomeInput}
-              onChange={(e) => setIncomeInput(e.target.value)}
+              onChange={(e) => { setIncomeInput(e.target.value); setPendingSource(null); }}
               placeholder="Take-home per month"
               className="w-48 rounded-lg border border-white/10 bg-surface-muted px-3 py-2 text-sm outline-none focus:border-accent"
             />
@@ -199,7 +221,7 @@ export default function MonthlyBudget() {
               Cancel
             </button>
             {hasIncome && (
-              <button type="button" onClick={() => saveIncome(null)} className="px-2 text-xs text-slate-500 hover:text-rose-400">
+              <button type="button" onClick={() => saveIncome(null, null)} className="px-2 text-xs text-slate-500 hover:text-rose-400">
                 Clear
               </button>
             )}
@@ -211,11 +233,40 @@ export default function MonthlyBudget() {
             total {formatCurrency(paycheckSuggestion.total)}.{' '}
             <button
               type="button"
-              onClick={() => { setEditingIncome(true); setIncomeInput(String(Math.round(paycheckSuggestion.total * 100) / 100)); }}
+              onClick={() => { setEditingIncome(true); setPendingSource(null); setIncomeInput(String(Math.round(paycheckSuggestion.total * 100) / 100)); }}
               className="text-accent-soft hover:underline"
             >
               Use that amount
             </button>
+          </p>
+        )}
+        {monarch?.income && (!hasIncome || editingIncome) && (
+          <div className="mt-3 text-xs text-slate-400">
+            <p>From your Monarch import ({monarch.last.taken_at}) -- these can differ a lot, so pick deliberately:</p>
+            <div className="mt-1 flex flex-wrap gap-2">
+              {[
+                ['Active pay streams', monarch.income.streams_total, 'monarch_streams'],
+                ['6-month average', monarch.income.average, 'monarch_average'],
+                ['Monarch budget', monarch.income.budget, 'monarch_budget'],
+              ].map(([label, value, source]) =>
+                value != null && value > 0 ? (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => { setEditingIncome(true); setPendingSource(source); setIncomeInput(String(Math.round(value * 100) / 100)); }}
+                    className="rounded-md bg-white/5 px-2 py-1 text-slate-200 hover:bg-white/10"
+                  >
+                    {label}: {formatCurrency(value)}
+                  </button>
+                ) : null
+              )}
+            </div>
+          </div>
+        )}
+        {!monarch && !hasIncome && (
+          <p className="mt-2 text-xs text-slate-500">
+            Tip: <Link to="/monarch" className="text-accent-soft hover:underline">import from Monarch</Link> to get income
+            suggestions from your real pay history.
           </p>
         )}
         <p className="mt-2 text-xs text-slate-500">
