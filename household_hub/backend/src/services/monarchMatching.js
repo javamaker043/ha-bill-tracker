@@ -40,21 +40,63 @@ export function candidateCycles(bill, today) {
   return out;
 }
 
-function scorePair(bill, tx) {
-  const contain = containment(billTokens(bill), tokens(tx.merchant));
-  const diff = Math.abs(tx.amount - Number(bill.amount));
-  const tol = Math.max(1, Number(bill.amount) * 0.05);
-  const exact = diff <= Math.max(0.5, Number(bill.amount) * 0.01);
-  const near = diff <= tol;
+// Monarch categories that mean "money paid toward a debt" (as opposed to a
+// purchase). Debt bills only accept these, so a card's subscription charge
+// ("Apple", category Subscription) is never mistaken for a payment on the
+// Apple Card bill; and purely-payment categories never match plain bills.
+const DEBT_PAYMENT_RE = /credit card payment|loan|mortgage|auto payment|student|payment|transfer/i;
+const CARD_PAYMENT_RE = /credit card payment/i;
+
+// Which Monarch account type a payment category belongs to (null = any).
+function accountTypeForCategory(category) {
+  const c = String(category || '').toLowerCase();
+  if (c.includes('credit card payment')) return 'credit';
+  if (c.includes('auto payment')) return 'auto';
+  if (c.includes('mortgage')) return 'mortgage';
+  if (c.includes('student')) return 'student';
+  return null;
+}
+
+// 1 = the payment category fits the linked account, -1 = conflicts (e.g. an
+// auto payment can't be paying a credit card), 0 = can't tell.
+function categoryFit(txCategory, accountType) {
+  const want = accountTypeForCategory(txCategory);
+  const have = String(accountType || '').toLowerCase();
+  if (!want || !have) return 0;
+  return have.includes(want) ? 1 : -1;
+}
+
+function scorePair(bill, tx, account) {
+  const isDebt = Boolean(bill.category_is_debt);
+  const category = tx.category || '';
+  if (isDebt && category && !DEBT_PAYMENT_RE.test(category)) return null;
+  if (!isDebt && CARD_PAYMENT_RE.test(category)) return null;
+
+  const nameContain = containment(billTokens(bill), tokens(tx.merchant));
+  // A bill linked to a Monarch account can also be recognised by the account's
+  // institution ("Capital One" paying an auto loan whose bill is called
+  // "Toyota"). Weaker than a name match, so never "strong" on its own.
+  const instContain = account?.institution ? containment(tokens(account.institution), tokens(tx.merchant)) * 0.8 : 0;
+  const contain = Math.max(nameContain, instContain);
+
+  const fit = account ? categoryFit(category, account.type) : 0;
+  if (fit < 0) return null;
+
+  const amount = Number(bill.amount);
+  const diff = Math.abs(tx.amount - amount);
+  const exact = diff <= Math.max(0.5, amount * 0.01);
+  const near = diff <= Math.max(1, amount * 0.05);
+  // A bill whose name matches exactly may simply have changed price a little.
+  const closeEnough = nameContain >= 0.99 && diff <= amount * 0.15;
   // Debt payments are often more than the minimum, so any amount at or above
   // half the usual payment counts; everything else has to be close.
-  const amountOk = bill.category_is_debt ? tx.amount >= Number(bill.amount) * 0.5 : near;
+  const amountOk = isDebt ? tx.amount >= amount * 0.5 : near || closeEnough;
   const ok = (contain >= 0.5 && amountOk) || (contain >= 0.25 && exact);
   if (!ok) return null;
   return {
-    score: contain * 100 + (exact ? 30 : near ? 10 : 0),
-    confidence: contain >= 0.99 && exact ? 'high' : 'likely',
-    amount_diff: Math.round((tx.amount - Number(bill.amount)) * 100) / 100,
+    score: contain * 100 + (exact ? 30 : near ? 10 : 0) + (fit > 0 ? 25 : 0),
+    confidence: nameContain >= 0.99 && exact ? 'high' : 'likely',
+    amount_diff: Math.round((tx.amount - amount) * 100) / 100,
   };
 }
 
@@ -69,6 +111,7 @@ export function suggestPayments(snapshot, bills, { loggedTxnIds, existingPayment
     .sort((a, b) => a.date.localeCompare(b.date));
 
   const open = bills.filter((b) => b.recurrence !== 'once' || b.status !== 'paid');
+  const accountById = new Map((snapshot.accounts || []).map((a) => [a.id, a]));
   const cyclesByBill = new Map(open.map((b) => [b.id, candidateCycles(b, today)]));
   const used = new Map(); // bill.id -> number of cycles already consumed
   let alreadyLogged = 0;
@@ -77,7 +120,7 @@ export function suggestPayments(snapshot, bills, { loggedTxnIds, existingPayment
   for (const tx of txs) {
     let best = null;
     for (const bill of open) {
-      const s = scorePair(bill, tx);
+      const s = scorePair(bill, tx, bill.monarch_account_id ? accountById.get(String(bill.monarch_account_id)) : null);
       if (!s) continue;
       if (!best || s.score > best.s.score) best = { bill, s };
     }
@@ -167,6 +210,25 @@ export function reconcileStreams(snapshot, bills, { dismissed, categories }) {
   }
 
   const catByLower = new Map(categories.map((c) => [c.name.toLowerCase(), c.name]));
+  // Monarch's category names rarely equal the household's own; map the common
+  // ones onto whichever of the household's categories exists, else "Other".
+  const MAP = [
+    [/phone|internet|cable|gas|electric|water|garbage|utilit/i, 'Utilities'],
+    [/subscription|entertainment/i, 'Subscriptions'],
+    [/loan repayment|student/i, 'Short-Term Loans'],
+    [/mortgage|rent|home/i, 'Housing'],
+    [/auto|car|gas & fuel/i, 'Auto'],
+    [/grocer|food|restaurant|dining/i, 'Food'],
+  ];
+  const categoryFor = (monarchCategory) => {
+    const exact = catByLower.get(String(monarchCategory || '').trim().toLowerCase());
+    if (exact) return exact;
+    for (const [re, target] of MAP) {
+      if (re.test(monarchCategory || '') && catByLower.has(target.toLowerCase())) return catByLower.get(target.toLowerCase());
+    }
+    return catByLower.get('other') || 'Other';
+  };
+  const txTokenSets = (snapshot.transactions || []).map((t) => tokens(t.merchant));
   const matched = [];
   const added = [];
   const stale = [];
@@ -200,7 +262,7 @@ export function reconcileStreams(snapshot, bills, { dismissed, categories }) {
           amount: shape.amount,
           recurrence: shape.recurrence,
           due_date: s.next_date,
-          category: catByLower.get(s.category.toLowerCase()) || 'Other',
+          category: categoryFor(s.category),
           note: shape.note,
         },
       });
@@ -209,8 +271,14 @@ export function reconcileStreams(snapshot, bills, { dismissed, categories }) {
 
   // Recurring bills that no Monarch stream accounts for -- possibly cancelled
   // or forgotten. Debt accounts are tracked through their account, not a stream.
+  // A bill with a recent bill-like transaction under its name isn't "unseen"
+  // just because Monarch never formed a recurring stream for it.
+  const hasRecentTransaction = (b) => {
+    const bt = billTokens(b);
+    return txTokenSets.some((tt) => containment(bt, tt) >= 0.5);
+  };
   const unseen = recurring
-    .filter((b) => !takenBills.has(b.id) && !b.monarch_account_id && !(b.category_is_debt && b.current_balance != null))
+    .filter((b) => !takenBills.has(b.id) && !b.monarch_account_id && !(b.category_is_debt && b.current_balance != null) && !hasRecentTransaction(b))
     .map((b) => ({ id: b.id, name: b.name, amount: b.amount, recurrence: b.recurrence, category: b.category, autopay: b.autopay }));
 
   return { matched, new: added, stale, unseen };

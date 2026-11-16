@@ -60,6 +60,7 @@ export function validateSnapshot(raw) {
       id,
       name: String(a?.name ?? '').trim(),
       type: String(a?.type ?? '').trim(),
+      institution: String(a?.institution ?? '').trim(),
       balance,
       apr: numOrNull(a?.apr),
       interest_rate: numOrNull(a?.interest_rate),
