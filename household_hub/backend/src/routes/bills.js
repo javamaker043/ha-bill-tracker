@@ -128,6 +128,26 @@ router.patch('/:id/paycheck', (req, res) => {
   res.json(withComputedStatus(db.prepare('SELECT * FROM bills WHERE id = ?').get(req.params.id)));
 });
 
+// Monthly Budget: flag a bill for reduction by giving the per-payment amount
+// it could drop to (0 = cancel it), or clear the flag with reduce_target: null.
+router.patch('/:id/reduce', (req, res) => {
+  const bill = db.prepare('SELECT * FROM bills WHERE id = ?').get(req.params.id);
+  if (!bill) return res.status(404).json({ error: 'not found' });
+  const { reduce_target } = req.body;
+  let value = null;
+  if (reduce_target !== null && reduce_target !== undefined && reduce_target !== '') {
+    value = Number(reduce_target);
+    if (!Number.isFinite(value) || value < 0) {
+      return res.status(400).json({ error: 'reduce_target must be a non-negative number' });
+    }
+    if (value >= Number(bill.amount)) {
+      return res.status(400).json({ error: 'The reduced amount must be less than the current amount.' });
+    }
+  }
+  db.prepare("UPDATE bills SET reduce_target = ?, updated_at = datetime('now') WHERE id = ?").run(value, bill.id);
+  res.json(db.prepare(`${BILLS_WITH_CATEGORY_SELECT} WHERE bills.id = ?`).get(bill.id));
+});
+
 // Mark paid: logs payment, then rolls due_date forward if recurring
 router.post('/:id/pay', (req, res) => {
   const bill = db.prepare('SELECT * FROM bills WHERE id = ?').get(req.params.id);

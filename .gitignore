@@ -5,3 +5,6 @@ dist/
 .env
 .DS_Store
 household_hub/backend/data/
+
+# Real financial exports/snapshots must never be committed (public repo)
+*.snapshot.json

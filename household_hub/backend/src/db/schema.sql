@@ -117,6 +117,13 @@ CREATE TABLE IF NOT EXISTS notification_log (
   sent_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Household-wide key/value settings (currently: monthly_income, the average
+-- monthly take-home the Monthly Budget view compares scheduled bills against).
+CREATE TABLE IF NOT EXISTS app_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_bills_due_date ON bills(due_date);
 CREATE INDEX IF NOT EXISTS idx_paychecks_pay_date ON paychecks(pay_date);
 CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);

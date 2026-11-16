@@ -49,6 +49,8 @@ export const api = {
     assignPaycheck: (id, paycheck_id) =>
       request(`/bills/${id}/paycheck`, { method: 'PATCH', body: JSON.stringify({ paycheck_id }) }),
     remove: (id) => request(`/bills/${id}`, { method: 'DELETE' }),
+    setReduceTarget: (id, reduce_target) =>
+      request(`/bills/${id}/reduce`, { method: 'PATCH', body: JSON.stringify({ reduce_target }) }),
     removePayment: (billId, paymentId) =>
       request(`/bills/${billId}/payments/${paymentId}`, { method: 'DELETE' }),
   },
@@ -70,6 +72,10 @@ export const api = {
     create: (data) => request('/tasks', { method: 'POST', body: JSON.stringify(data) }),
     update: (id, data) => request(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id) => request(`/tasks/${id}`, { method: 'DELETE' }),
+  },
+  settings: {
+    get: () => request('/settings'),
+    update: (data) => request('/settings', { method: 'PUT', body: JSON.stringify(data) }),
   },
   notify: {
     test: (notify_service) => request('/notify/test', { method: 'POST', body: JSON.stringify({ notify_service }) }),

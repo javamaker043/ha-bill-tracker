@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.5.0
+
+- **Monthly Budget** page. Enter your average monthly income and see your
+  scheduled bills as a typical month against it:
+  - Bills per month (weekly bills x 52/12, yearly /12; one-time bills are
+    listed separately, not averaged in), what's left over or the shortfall,
+    and what share of income the bills use.
+  - A "Where the money goes" breakdown by category, and a per-bill table
+    (cards on phones) showing schedule, per-payment and per-month cost, % of
+    income, and a Type (Essential / Debt / Flexible, classified from the
+    category name).
+  - **Reduction inventory:** flag any bill with the amount it could drop to
+    (0 cancels it, with quick -10/-25/-50% buttons). A "Closing the gap"
+    card shows how much the flagged items free up each month, how much is
+    still to find, and what bills would total afterwards.
+  - "Where to look first" suggests flexible spending, then the highest-APR
+    debts when bills exceed income (essentials are never suggested).
+  - One-click income suggestion from paychecks planned in the next 30 days.
+- New `/api/settings` (monthly income) and `/api/bills/:id/reduce`; new
+  `app_settings` table and `bills.reduce_target` column (additive migration,
+  verified against an old-schema database).
+- Dashboard's monthly-equivalent math moved to a shared helper.
+- Docs: [Monarch integration review and recommendations](../docs/monarch-integration.md).
+
 ## 0.4.0
 
 Finishes the remaining items from the mobile + financial-management

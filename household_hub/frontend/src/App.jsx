@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, NavLink, useLocation, Link } from 'react-router-dom';
-import { LayoutDashboard, Receipt, CalendarDays, FolderKanban, Settings, Wallet, TrendingDown, Menu, X, AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, Receipt, CalendarDays, FolderKanban, Settings, Wallet, TrendingDown, Menu, X, AlertTriangle, PiggyBank } from 'lucide-react';
 
 import Dashboard from './pages/Dashboard.jsx';
 import Bills from './pages/Bills.jsx';
 import BillCalendar from './pages/BillCalendar.jsx';
 import PaymentPlans from './pages/PaymentPlans.jsx';
+import MonthlyBudget from './pages/MonthlyBudget.jsx';
 import DebtManagement from './pages/DebtManagement.jsx';
 import Projects from './pages/Projects.jsx';
 import ProjectDetail from './pages/ProjectDetail.jsx';
@@ -16,6 +17,7 @@ const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/bills', label: 'Bills', icon: Receipt },
   { to: '/calendar', label: 'Bill Calendar', icon: CalendarDays },
+  { to: '/budget', label: 'Monthly Budget', icon: PiggyBank },
   { to: '/payment-plans', label: 'Payment Plans', icon: Wallet },
   { to: '/debt-management', label: 'Debt Management', icon: TrendingDown },
   { to: '/projects', label: 'Projects', icon: FolderKanban },
@@ -123,6 +125,7 @@ export default function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/bills" element={<Bills />} />
               <Route path="/calendar" element={<BillCalendar />} />
+              <Route path="/budget" element={<MonthlyBudget />} />
               <Route path="/payment-plans" element={<PaymentPlans />} />
               <Route path="/debt-management" element={<DebtManagement />} />
               <Route path="/projects" element={<Projects />} />
