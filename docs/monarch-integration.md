@@ -1,6 +1,8 @@
 # Monarch Money integration: review and recommendations
 
-Status: proposal. Nothing in Household Hub or Monarch was changed as part of this review.
+Status: **P1 implemented in 0.6.0** (snapshot import, Monarch-sourced income suggestions, debt balance/APR
+syncing). How to use it: [monarch-snapshot-import.md](monarch-snapshot-import.md). P2 and later remain proposals.
+The review itself changed nothing in Monarch.
 
 **How this was reviewed.** The Monarch MCP connection was exercised with *read-only* calls only (recurring
 streams, accounts, cash flow, budget, debt payoff plan). This document records what the data looks like
@@ -183,8 +185,8 @@ what will change in Monarch, never a bulk or background operation.
 | Phase | Scope | Size |
 |---|---|---|
 | 0 | Clean up Monarch data (5.1) and verify HA entities | S, mostly manual |
-| 1 | Snapshot schema + importer screen; income suggestions (3 sources) | M |
-| 2 | Debt account linking + balance/APR/payment sync; optional balance on pay | M |
+| 1 | Snapshot schema + importer screen; income suggestions (3 sources) | M, **done (0.6.0)** |
+| 2 | Debt account linking + balance/APR/payment sync; optional balance on pay | M, **done (0.6.0)** |
 | 3 | Payment-matching inbox; recurring reconciliation | M-L |
 | 4 | Plan-vs-actual overlay, cash-flow trend, debt-plan cross-check | M |
 | 5 | Optional automation (HA entities, scheduled snapshots) | M, only if wanted |

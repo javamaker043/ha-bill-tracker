@@ -124,6 +124,16 @@ CREATE TABLE IF NOT EXISTS app_settings (
   value TEXT
 );
 
+-- Snapshots imported from Monarch Money (see docs/monarch-snapshot-import.md).
+-- Only the most recent few are kept; payload is the validated snapshot JSON.
+CREATE TABLE IF NOT EXISTS monarch_snapshots (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  taken_at TEXT NOT NULL,
+  applied_at TEXT NOT NULL DEFAULT (datetime('now')),
+  summary TEXT,
+  payload TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_bills_due_date ON bills(due_date);
 CREATE INDEX IF NOT EXISTS idx_paychecks_pay_date ON paychecks(pay_date);
 CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);

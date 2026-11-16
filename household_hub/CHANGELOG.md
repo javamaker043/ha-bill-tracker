@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.6.0
+
+- **Monarch Import** page (P1 of the Monarch integration plan). Paste a
+  snapshot that Claude builds from Monarch's read-only data (the page has a
+  copy-ready prompt and step-by-step instructions), preview exactly what
+  would change, then apply. Nothing is written to Monarch, and nothing
+  changes here until you click Apply.
+  - **Debts:** each Monarch liability can be linked to an existing bill
+    (matched by name and last four digits; links are remembered), created as
+    a new debt bill (you supply the due date), or skipped. Choose per
+    account whether to update the balance, the APR, and the payment amount.
+    Debt Management's payoff scenarios and avalanche/snowball use the
+    imported balances and rates directly.
+  - **Income:** three Monarch figures (active recurring pay streams, 6-month
+    paycheck average, budgeted paychecks) offered side by side; stale streams
+    are flagged and excluded unless you tick them back in. The Monthly
+    Budget page offers the same figures as one-click suggestions and shows
+    where the current income came from.
+  - Linked debt bills show "as of <date>" for their balance, and marking a
+    payment no longer requires typing a statement balance (it's optional).
+    A hand-edited balance clears the "as of" date.
+- Backend: `/api/monarch/status|preview|apply`, `monarch_snapshots` table,
+  `bills.monarch_account_id` / `balance_as_of`, versioned snapshot format
+  (documented in `docs/monarch-snapshot-import.md`), request body limit
+  raised to 1 MB.
+- Re-importing is idempotent (linked accounts are recognized; no duplicate
+  bills), and only the latest 5 snapshots are kept.
+
 ## 0.5.0
 
 - **Monthly Budget** page. Enter your average monthly income and see your

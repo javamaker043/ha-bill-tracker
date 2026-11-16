@@ -110,6 +110,10 @@ router.put('/:id', (req, res) => {
     status, merged.current_balance ?? null, merged.interest_rate ?? null, merged.credit_limit ?? null,
     merged.notes, req.params.id
   );
+  // A hand-edited balance is no longer "as of" the last Monarch import.
+  if ((merged.current_balance ?? null) !== (existing.current_balance ?? null)) {
+    db.prepare('UPDATE bills SET balance_as_of = NULL WHERE id = ?').run(req.params.id);
+  }
   res.json(db.prepare('SELECT * FROM bills WHERE id = ?').get(req.params.id));
 });
 
@@ -209,6 +213,9 @@ router.post('/:id/pay', (req, res) => {
     // Only overwrite the bill's stored balance when this payment actually
     // reported one -- otherwise leave the last known balance as-is.
     const currentBalance = statement_balance ?? bill.current_balance;
+    if (statement_balance != null) {
+      db.prepare('UPDATE bills SET balance_as_of = NULL WHERE id = ?').run(bill.id);
+    }
 
     if (bill.recurrence === 'once') {
       // A one-time bill stays wherever it ends up: if the payer just picked

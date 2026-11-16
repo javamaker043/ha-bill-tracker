@@ -9,7 +9,7 @@ export default function MarkPaidModal({ bill, members, paychecks, onClose, onCon
   const [amount, setAmount] = useState(bill.amount);
   const [paidDate, setPaidDate] = useState(todayISO());
   const [paidBy, setPaidBy] = useState('');
-  const [statementBalance, setStatementBalance] = useState(bill.current_balance ?? '');
+  const [statementBalance, setStatementBalance] = useState(bill.monarch_account_id ? '' : bill.current_balance ?? '');
   const [paycheckChoice, setPaycheckChoice] = useState('');
   const [sourceText, setSourceText] = useState('');
   const [saving, setSaving] = useState(false);
@@ -19,6 +19,9 @@ export default function MarkPaidModal({ bill, members, paychecks, onClose, onCon
   // key, so "is this a debt category" comes pre-joined from categories.is_debt
   // rather than guessed here from the category name).
   const balanceRequired = Boolean(bill.category_is_debt);
+  // Linked to a Monarch account: the balance comes from the next import, so
+  // typing it in with every payment is optional.
+  const linked = Boolean(bill.monarch_account_id);
   const needsSource = !bill.paycheck_id;
 
   const submit = async (e) => {
@@ -72,9 +75,11 @@ export default function MarkPaidModal({ bill, members, paychecks, onClose, onCon
         </label>
         {balanceRequired && (
           <label className="block">
-            <span className="mb-1 block text-xs font-medium text-slate-400">Current statement balance</span>
+            <span className="mb-1 block text-xs font-medium text-slate-400">
+              Current statement balance{linked ? ' (optional)' : ''}
+            </span>
             <input
-              required
+              required={!linked}
               type="number"
               step="0.01"
               value={statementBalance}
@@ -83,8 +88,9 @@ export default function MarkPaidModal({ bill, members, paychecks, onClose, onCon
               className="w-full rounded-lg border border-white/10 bg-surface-muted px-3 py-2 text-sm outline-none focus:border-accent"
             />
             <span className="mt-1 block text-xs text-slate-500">
-              {bill.category} bills track a running balance -- enter what your latest statement shows,
-              even if it's the same as last time.
+              {linked
+                ? `Synced from Monarch${bill.balance_as_of ? ` (as of ${bill.balance_as_of})` : ''} -- leave blank to keep it and refresh it with your next Monarch import.`
+                : `${bill.category} bills track a running balance -- enter what your latest statement shows, even if it's the same as last time.`}
             </span>
           </label>
         )}
